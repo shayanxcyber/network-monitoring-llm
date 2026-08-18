@@ -17,13 +17,6 @@ venv/
 .DS_Store
 Thumbs.db
 
-# Generated and potentially large network evidence
-*.log
-*.pcap
-*.pcapng
-results/
-artifacts/
-
 # Archives and virtual machines
 *.zip
 *.7z

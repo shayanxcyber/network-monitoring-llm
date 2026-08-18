@@ -1,7 +1,16 @@
 # Packet Analysis and Deterministic Detection
 
-Owns PCAP/log processing, structured network evidence, data validation and transparent deterministic findings or
-abstentions.
+This component processes network captures and converts them into structured, traceable evidence.
 
-Owner: To be agreed  
-Status: Planning
+## Responsibilities
+
+- Process PCAPs and logs using TShark, Wireshark or Python.
+- Extract relevant packet and traffic information.
+- Validate the extracted evidence.
+- Develop transparent detection rules.
+- Produce supported findings or indicate when evidence is insufficient.
+- Pass structured evidence to the application workflow.
+
+## Status
+
+Planning and evidence-format design.

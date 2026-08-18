@@ -1,7 +1,16 @@
 # Application Workflow, Audit and Data
 
-Owns the non-LLM application workflow, component hand-offs, configuration, timestamped audit records and stored
-results.
+This component connects the non-LLM parts of the application and manages the movement and storage of project data.
 
-Owner: To be agreed  
-Status: Planning
+## Responsibilities
+
+- Connect packet input, parsing and deterministic detection.
+- Pass structured evidence to the LLM component.
+- Receive and store validated results.
+- Maintain timestamps and audit records.
+- Manage application configuration and general error handling.
+- Support integration between the project components.
+
+## Status
+
+Planning and workflow design.

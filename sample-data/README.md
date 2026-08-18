@@ -1,7 +1,14 @@
 # Sample Data
 
-Store only small, synthetic and team-approved test inputs here. Large captures, private traffic, credentials and PII
-must not be committed.
+This folder contains the controlled data used to develop, test and evaluate the project.
 
-PCAP and PCAPNG files are ignored by default and should be reviewed before a small synthetic fixture is explicitly
-added.
+## Expected Contents
+
+- Synthetic PCAP and PCAPNG files.
+- Generated network logs.
+- Scenario labels and descriptions.
+- Expected findings and outputs.
+- Small evaluation datasets.
+- Selected generated results needed to reproduce project findings.
+
+Project scripts and synthetic captures may be committed to Git. API keys and credentials must not be stored here.
