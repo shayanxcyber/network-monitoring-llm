@@ -2,23 +2,44 @@
 
 Private team repository for the 41909 Cybersecurity Capstone Studio project.
 
-## Current stage
+## Project Purpose
 
-The project is in Week 4 planning and environment setup. The role allocation, technical architecture and individual
-component ownership are still being discussed. Prepared folders do not mean that implementation is complete.
+Develop a prototype that processes network captures or logs, identifies relevant network activity, explains the
+evidence using an LLM and provides safe network-response recommendations through an operator interface.
 
-## Repository structure
+## Current Stage
 
-- `components/` — one working area for each proposed technical role;
-- `sample-data/` — small synthetic inputs that are safe and useful to share; and
-- `docs/setup.md` — confirmed project setup instructions.
+The project is currently in Week 4 planning and environment setup. Tools and technical architecture are still being
+discussed. The prepared folders do not represent completed implementation.
 
-## Team workflow
+## Team
 
-1. Agree on roles and record them in `TEAM_ROLES.md`.
-2. Create a branch for each task, such as `feature/llm-interface`.
-3. Keep API keys, credentials, private captures and generated files out of Git.
-4. Open a pull request for review before merging into `main`.
-5. Record project-wide technical decisions in `PROJECT_DECISIONS.md`.
+| Team member | Role |
+|---|---|
+| Shayan Ali | LLM Integration and Operator Interface |
+| Mohamed Khamis | Network Environment and Traffic Simulation |
+| Martin Huynh | Packet Analysis and Deterministic Detection |
+| Laurence Lau | Application Workflow, Audit and Data |
+| Ryea Dsouza | Safe Network Response and Control |
+| Antonio Dormido | Evaluation, Testing and Reproducibility |
 
-Each component owner is responsible for their component's code, tests, setup notes and integration evidence.
+## Repository Structure
+
+- `components/` contains one working area for each project role.
+- `sample-data/` contains synthetic captures, logs and testing data.
+- `docs/setup.md` contains confirmed project setup instructions.
+- `TEAM_ROLES.md` records the team allocation.
+- `PROJECT_DECISIONS.md` records confirmed technical decisions.
+
+## Team Workflow
+
+1. Create a separate branch for each task.
+2. Add code and tests to the relevant component folder.
+3. Review changes before merging them into `main`.
+4. Update the project instructions when setup or dependencies change.
+
+## Repository Rules
+
+- Keep API keys and credentials private and never commit them to Git.
+- Commit project scripts, synthetic PCAPs, logs, test inputs and useful evaluation results.
+- Each member is responsible for testing and explaining their own component.
