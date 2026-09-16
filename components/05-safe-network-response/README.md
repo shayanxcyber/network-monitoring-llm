@@ -1,16 +1,13 @@
 # Safe Network Response and Control
 
-This component validates network-response recommendations and controls how they may be applied.
+pp_policy.py supports no-action, investigation and a typed temporary-block preview.
+It checks the evidence finding, target, protected addresses and bounded duration.
+It rejects execution and contains no shell/firewall executor.
 
-## Responsibilities
+Example:
 
-- Define the network actions permitted by the prototype.
-- Validate recommendations before an action is performed.
-- Provide dry-run and operator-approval controls.
-- Implement approved lab-only block or throttle actions.
-- Verify whether an action succeeded.
-- Provide expiration and rollback behaviour.
+    python packetpilot.py analyse --capture sample-data/port-check.pcap --preview block_source --target 10.77.0.30
 
-## Status
-
-Planning and safety-boundary design.
+Next: review the approval and target boundaries. Later, separately implement a
+lab-only executor with expiry, rollback and verification; demonstrate it only
+inside the agreed isolated network. A permitted preview is not an applied block.
