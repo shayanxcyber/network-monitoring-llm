@@ -1,16 +1,12 @@
 # Packet Analysis and Deterministic Detection
 
-This component processes network captures and converts them into structured, traceable evidence.
+pp_evidence.py validates and decodes a saved PCAP, preserves its hash and packet
+numbers, and applies one explicit rule: at least six server ports tried by one
+source within ten seconds. It reads only packet-header fields, not payload text.
 
-## Responsibilities
+The decoder is selected with --decoder scapy or --decoder tshark. Auto uses
+TShark when installed, otherwise Scapy; the chosen decoder is recorded.
 
-- Process PCAPs and logs using TShark, Wireshark or Python.
-- Extract relevant packet and traffic information.
-- Validate the extracted evidence.
-- Develop transparent detection rules.
-- Produce supported findings or indicate when evidence is insufficient.
-- Pass structured evidence to the application workflow.
-
-## Status
-
-Planning and evidence-format design.
+Next: repeat the earlier Ubuntu TShark/Scapy check, inspect the referenced packets and
+test legitimate maintenance/near-threshold examples. The threshold is illustrative,
+not a claim that every matching source is malicious.
