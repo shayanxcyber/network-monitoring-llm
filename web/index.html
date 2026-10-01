@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PacketPilot — Traffic review</title>
+  <meta name="description" content="A local, evidence-linked network traffic review prototype.">
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <header class="appbar">
+    <a href="/" class="brand"><span class="brand-mark" aria-hidden="true">PP</span>PacketPilot</a>
+    <span class="appbar-section">Traffic review</span>
+    <div class="connection"><span id="connection-dot" class="dot"></span><span id="connection-label">Checking connection…</span></div>
+    <span class="quiet-badge">LAB PROTOTYPE</span>
+  </header>
+  <div class="shell">
+    <aside class="sidebar" aria-label="Saved reviews">
+      <button id="new-review" class="primary full">+ New review</button>
+      <div class="sidebar-heading">SAVED REVIEWS <span id="review-count">0</span></div>
+      <nav id="review-list" aria-label="Review history"></nav>
+      <div class="sidebar-foot"><span class="dot green"></span> Saved in this VM<br><small>Capture, questions and evidence stay linked when you return.</small></div>
+    </aside>
+    <main>
+      <div id="notice" class="notice" role="status" hidden></div>
+      <section id="welcome" class="welcome">
+        <div class="eyebrow">A SMALL, CONTROLLED STARTING POINT</div>
+        <h1>Start a traffic review</h1>
+        <p class="lede">Choose a saved capture, inspect the evidence and ask what it means.</p>
+        <div class="sample-list">
+          <button class="sample-row" data-sample="port-check"><span class="file-icon" aria-hidden="true">PCAP</span><span><strong>Repeated service-port checks</strong><small>8 connection attempts · one lab server · 0.7 seconds</small></span><span class="row-arrow" aria-hidden="true">→</span></button>
+          <button class="sample-row" data-sample="normal"><span class="file-icon neutral" aria-hidden="true">PCAP</span><span><strong>Normal-looking connections</strong><small>9 packets · three handshakes · a useful comparison</small></span><span class="row-arrow" aria-hidden="true">→</span></button>
+        </div>
+        <button id="upload-start" class="secondary">Choose your own lab PCAP</button>
+        <div class="scope-note"><strong>What this version can do</strong><p>Review saved lab IPv4/TCP traffic using a narrow port-check rule. PacketPilot can explain that evidence and answer follow-up questions. Response controls are previews only—nothing changes your network.</p><small>These examples are generated files, not a live attack or a general detection benchmark.</small></div>
+      </section>
+      <section id="workspace" class="workspace" hidden>
+        <header class="review-header"><div><div class="eyebrow">CURRENT CAPTURE</div><h1 id="review-title"></h1><div id="review-meta" class="muted"></div></div><div class="review-header-actions"><span id="finding-badge" class="finding"></span><a id="export-review" class="text-link">Export review ↓</a></div></header>
+        <div class="work-grid">
+          <section class="conversation" aria-label="Capture conversation">
+            <div class="conversation-heading"><h2>Conversation</h2><span id="mode-label"></span></div>
+            <div id="turns" class="turns" aria-live="polite"></div>
+            <div id="working" class="working" role="status" hidden>Reviewing the evidence…</div>
+            <form id="question-form" class="composer">
+              <div class="suggestions"><button type="button" data-question="Why was this traffic flagged?">Why was this flagged?</button><button type="button" data-question="What does TCP SYN mean in this capture?">What does SYN mean?</button><button type="button" data-question="What should I check before taking action?">What should I check next?</button></div>
+              <label class="sr-only" for="question">Ask about this capture</label><textarea id="question" rows="2" maxlength="600" placeholder="Ask about this capture…" required></textarea>
+              <div class="composer-bottom"><small id="mode-help"></small><button id="send-question" class="primary" type="submit">Ask PacketPilot ↑</button></div>
+            </form>
+          </section>
+          <aside class="evidence-panel" aria-label="Evidence and response preview">
+            <div class="panel-heading"><h2>Packet evidence</h2><span id="fact-count"></span></div>
+            <div id="facts"></div>
+            <details class="rule-details"><summary>How this finding is calculated</summary><p>At least 6 distinct destination ports on the lab server, from one source within 10 seconds, using TCP SYN without ACK.</p><p>That is a reason to investigate, not proof of malicious intent. No match is not proof that the network is safe.</p><code id="capture-hash"></code></details>
+            <section class="response-panel"><div class="eyebrow">RESPONSE PREVIEW</div><h3>Review before acting</h3><p>No commands are executed. Preview the bounded response and its checks.</p><button id="preview-block" class="secondary full">Preview a 60-second source block</button><div id="preview-result" class="preview-result" hidden></div></section>
+            <details class="limitations"><summary>Prototype limits</summary><ul id="limitations-list"></ul></details>
+          </aside>
+        </div>
+      </section>
+    </main>
+  </div>
+  <dialog id="new-dialog">
+    <form id="new-form">
+      <div class="dialog-heading"><h2>New traffic review</h2><button type="button" id="close-dialog" class="icon-button" aria-label="Close">×</button></div>
+      <p class="muted">One capture per conversation keeps every explanation tied to the right evidence.</p>
+      <label for="sample">Saved example</label><select id="sample"><option value="port-check">Repeated service-port checks — 8 packets</option><option value="normal">Normal-looking connections — 9 packets</option></select>
+      <label for="capture-file">Or upload a lab capture</label><input id="capture-file" type="file" accept=".pcap"><small>Classic Ethernet PCAP · 8 MiB maximum · lab network 10.77.0.0/24 only</small>
+      <label for="provider">Explanation mode</label><select id="provider"><option value="rules">Offline rules — no model call</option><option value="api">AI assistant — saved conversation</option></select>
+      <p id="provider-help" class="muted"></p>
+      <div id="dialog-error" class="notice" role="alert" hidden></div>
+      <div class="dialog-footer"><button id="create-review" class="primary" type="submit">Open review →</button></div>
+    </form>
+  </dialog>
+</body>
+</html>
