@@ -1,6 +1,8 @@
 # Credentials and local configuration
 .env
 .env.*
+!.env.example
+secrets.env
 *.pem
 *.key
 
@@ -8,6 +10,7 @@
 __pycache__/
 *.py[cod]
 .venv/
+.venv-host/
 venv/
 .pytest_cache/
 
