@@ -1,16 +1,11 @@
 # Network Environment and Traffic Simulation
 
-This component creates the controlled network environment and generates traffic for the project.
+Role member: Mohamed Khamis.
 
-## Responsibilities
+pp_samples.py uses Scapy to construct normal.pcap, port-check.pcap and their manifest. It does not transmit traffic. Regenerate with python packetpilot.py make-samples.
 
-- Configure the Linux network environment.
-- Build simulated network topologies.
-- Generate normal and suspicious traffic.
-- Use tools such as Mininet and Scapy where appropriate.
-- Produce labelled PCAPs and logs for development and testing.
-- Provide instructions for repeating each scenario.
+Contrasting cases in components/06-testing-evaluation provide normal traffic, multi-port probing, single-port retries, replies, mixed TCP/UDP and incomplete-evidence examples. Their expected labels are declared separately from the model output.
 
-## Status
+The optional live response lab uses fixed disconnected namespaces: service 10.77.0.10:8080, selected source 10.77.0.20, control 10.77.0.30 and the lab gateway. record_lab_network.py records the mapping; exercise_linux_response.py is a separate explicitly executed Linux experiment. Do not describe constructed examples as live captures.
 
-Planning and environment setup.
+The cases feed Martin's decoder/evidence calculations, Shayan's investigator and Antonio's evaluation. settings.toml supplies non-secret runtime defaults. See [evidence](../../docs/ROADSHOW_EVIDENCE.md), [lab setup](../../docs/LINUX_RESPONSE.md) and [current allocation](../../docs/HANDOFF_MAP.md).
