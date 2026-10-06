@@ -1,0 +1,48 @@
+Reviewed investigation guidance 1.2
+
+G01: Repetition and breadth differ. Four attempts to one destination service are
+not a multi-port sweep. First check SYN direction and unique SYN destination ports;
+do not count the ephemeral ports of reverse replies as service targets. Repeated
+single-port traffic can still deserve investigation; do not hardcode benignness.
+
+G02: A reference existing is not proof that it supports a whole sentence. Match
+each claim to packet, flow or aggregate scope. Use exact aggregate membership for
+"all" claims; never use a handful of packet examples to certify the entire capture.
+
+G03: Coverage and intent are different uncertainty sources. Missing/malformed
+frames limit what was observed. Unknown authorisation limits interpretation.
+Neither justifies discarding other usable packets or declaring all traffic safe.
+
+G04: Higher reasoning effort does not require a longer answer. Describe the
+strongest supported finding, one relevant alternative if needed, and useful next
+checks. Do not manufacture explanations to fill a list or overstate suspicion.
+
+These are reviewed general procedures, not training, case labels, answer keys,
+global memories learned from captures or proof of an individual answer's truth.
+
+G05: A delay/acknowledgement comparison needs both sides of the exchange. Four
+attempts with four replies are eight packets, not four. Validate counts and time
+endpoints against the supplied records before phrasing a numeric observation.
+
+G06: Whole-set claims need the property across that whole set, not merely its
+first/last packet or total size. Request a filtered aggregate exposing payload
+length/hash uniformity when relevant. If it does not expose cadence, do not
+invent a uniform interval from a few examples.
+
+G07: Label facts narrowly. A transport reply is not proof of application success;
+empty decoded statistics cannot describe unsupported frames. Repeated header
+values do not by themselves establish synthetic origin or malicious activity.
+
+G08: Match the evidence capability to the claim. For a header exchange, the
+read-only exchange inspector provides its supporting records and matching basis.
+PCAP sequence checks and log tuple/flag candidates are different evidence. Keep
+ambiguous retransmission/timestamp cases qualified; neither is a threat verdict.
+
+G09: Atomic observations make claims reviewable. Move inferred causes and benign
+or suspicious interpretations to interpretation/alternatives. For a count or
+timing claim, cite the aggregate that calculates it or every necessary record.
+Use only supplied measurement paths; a valid citation ID alone proves nothing.
+
+G10: Answer the current question once. Preserve a short useful uncertainty and
+next step, not multiple versions of the same disclaimer. Optional lists may be
+empty when they add nothing. More reasoning does not require more final prose.
