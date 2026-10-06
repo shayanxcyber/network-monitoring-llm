@@ -1,30 +1,13 @@
 # LLM Integration and Operator Interface
 
-## Files
+Role member: Shayan Ali.
 
-- pp_agent.py: the Agno-backed model adapter, standing conversation instructions,
-  SQLite history, provider-error sanitising and checked responses.
-- pp_web.py: local HTTP routes joining the operator UI to the evidence workflow.
-- pp_llm.py: configurable API connection, prompt construction, output validation,
-  timeouts, bounded retry, error handling and rule-based fallback.
-- pp_operator.py: command-line controls, readable result, evidence references,
-  repeated questions about a cached capture and response previews.
-- prompts/system.txt: versioned plain-language explanation instructions.
-- ../../docs/LLM_INTEGRATION.md: walkthrough, request/response boundary and setup.
+pp_agent.py selects the current Agno workspace investigator. pp_context.py supplies neutral capture observations, coverage, selected records and source-scoped history. pp_investigation_tools.py and pp_log_tools.py expose bounded read-only evidence operations; pp_workspace_tools.py adds current-lab state and validated proposal preparation, without approval or execution.
 
-## Implemented preparation
+pp_investigator.py coordinates hosted calls, tool results, budgets, private continuity, typed final output and one bounded correction. pp_investigation_contract.py checks schema, original references, actual measurements and supported recommendation parameters. prompts/workspace-v4.txt and reviewed-guidance-v1.txt provide current instructions and reviewed general lessons. Earlier prompt versions and pp_llm.py remain for compatibility.
 
-One provider connection, structured JSON answers, evidence-reference checks,
-finding-consistency checks, protected credentials, redirect refusal, bounded input,
-model/usage/timing metadata and clear separation between model and rule output.
-The operator can ask questions and inspect the evidence without reading raw packets.
+pp_web.py connects source import, conversations, public progress, original inspectors, suggestion download, exports and separately approved responses. pp_operator.py retains the command-line route. frontend/src/main.jsx and components.jsx provide the current React conversation workspace; web/react contains its shipped build.
 
-## Current checkpoint and next work
+Python supplies evidence; the model assesses it without a mandatory detector verdict. Public progress reports operations, not private provider reasoning. Protocol tests exercise bounded tools, references, history and errors with controlled responses, not detection accuracy.
 
-The light browser UI and two-turn real API check now work in Ubuntu, with saved
-history surviving restart. Use the browser for multi-turn questions; the terminal
-loop is an older capture-reuse route. Review the retained answers and improve
-explanation quality against independent cases. Explain what HTTP, the prompt,
-history, validation and the response boundary do before presenting them.
-
-Protocol tests use controlled responses; they do not establish real model quality.
+See [harness](../../docs/HARNESS_INVESTIGATION_V3.md), [current workspace](../../docs/WORKSPACE_RESPONSE_V4.md) and [handoff connections](../../docs/HANDOFF_MAP.md).
