@@ -1,0 +1,25 @@
+{
+  "format_version": "1",
+  "source": "Synthetic packet construction; no live capture or transmitted traffic.",
+  "timestamp_note": "Packet timestamps use a fixed synthetic clock.",
+  "network": "10.77.0.0/24",
+  "server": "10.77.0.10",
+  "cases": [
+    {
+      "id": "normal",
+      "file": "normal.pcap",
+      "packets": 9,
+      "sha256": "63be8a732cc0dd1f12e65d9ef9742dde8e53edcd4b7a7a4cd1386533686d615b",
+      "expected_finding": "no_scan_pattern",
+      "purpose": "Three normal-looking TCP handshakes to two server ports."
+    },
+    {
+      "id": "port-check",
+      "file": "port-check.pcap",
+      "packets": 8,
+      "sha256": "d216826aafc171d40eca69695e81a41176912a6399cdb9979472e25afb1a8471",
+      "expected_finding": "scan_like",
+      "purpose": "Eight TCP connection attempts to different server ports in 0.7 seconds."
+    }
+  ]
+}
