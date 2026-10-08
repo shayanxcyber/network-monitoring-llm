@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=PacketPilot
+Comment=Review saved lab traffic with linked packet evidence
+Exec=/home/capstone/packetpilot/.venv/bin/python /home/capstone/packetpilot/launch.py
+Path=/home/capstone/packetpilot
+Icon=network-workgroup
+Terminal=false
+Categories=Development;Education;

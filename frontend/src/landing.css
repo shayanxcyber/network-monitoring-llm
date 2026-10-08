@@ -1,0 +1,112 @@
+/* One landing owner: a top-aligned workspace, not a viewport-centred hero. */
+.main.is-home {
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #c2cdc8 transparent;
+}
+.is-home .topbar { flex: 0 0 60px; position: sticky; top: 0; }
+.welcome {
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  max-height: none;
+  overflow: visible;
+  margin: 0;
+  padding: 40px clamp(24px, 3vw, 48px) 40px;
+}
+.welcome-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 32px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid #dde3e3;
+}
+.welcome-copy { min-width: 0; }
+.welcome h1 { font-size: clamp(32px, 2.8vw, 42px); font-weight: 450; letter-spacing: -1.2px; margin: 10px 0 0; line-height: 1.2; color: #466178; }
+.welcome-copy > p:not(.eyebrow) { color: #6c8396; font-size: 14px; max-width: 67ch; line-height: 1.75; margin: 14px 0 0; }
+.welcome-start { align-self: center; }
+.welcome-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.welcome-start > .muted { display: block; text-align: right; font-size: 11px; margin-top: 12px; }
+.home-recent { min-width: 0; width: 100%; margin-top: 30px; }
+.recent-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.recent-heading h2 { margin: 0; font-size: 17px; font-weight: 550; letter-spacing: -.2px; color: #42586a; }
+.recent-heading p { margin: 5px 0 0; font-size: 12px; color: #7a8d9d; }
+.recent-heading > span { font-size: 11px; color: #7a8d9d; white-space: nowrap; }
+.recent-list { border: 1px solid #dfe5e5; border-radius: 12px; background: #fbfcfa; overflow: hidden; }
+.recent-columns, .recent-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, .35fr) minmax(115px, .24fr) 24px; gap: 24px; align-items: center; }
+.recent-columns { padding: 13px 22px; background: #edf1ef; color: #6f807f; font-size: 10px; font-weight: 500; letter-spacing: .03em; }
+.recent-list [role=listitem] + [role=listitem] { border-top: 1px solid #e4e9e7; }
+.recent-row { width: 100%; min-height: 65px; border: 0; border-radius: 0; padding: 12px 22px; text-align: start; background: transparent; box-shadow: none; transition: background .18s var(--ease); }
+.recent-row:hover { background: #f0f5f5; }
+.recent-row:focus-visible { outline: 2px solid #7d9bbb; outline-offset: -2px; }
+.recent-source { display: flex; align-items: center; gap: 13px; min-width: 0; }
+.recent-source > span:last-child { min-width: 0; }
+.recent-icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 9px; flex: none; color: #607e9a; background: #eaf0f3; }
+.recent-source strong { display: block; font-size: 13px; font-weight: 500; color: #42586a; line-height: 1.45; overflow-wrap: anywhere; }
+.recent-source small { display: block; margin-top: 4px; font-size: 10px; color: #7d8d98; }
+.recent-source code { font-size: 10px; color: #718796; }
+.recent-state { justify-self: start; font-size: 11px; color: #7a8b92; }
+.recent-state.has-conversation { color: #567467; background: #edf3ee; border-radius: 5px; padding: 5px 8px; }
+.recent-row time { display: block; font-size: 12px; color: #657985; }
+.recent-row time small { display: block; margin-top: 4px; font-size: 10px; color: #8a989e; }
+.recent-open { color: #7992a4; transition: transform .18s var(--ease), color .18s var(--ease); }
+.recent-row:hover .recent-open { transform: translateX(2px); color: var(--blue); }
+
+/* Preserve native wheel/touch/keyboard scrolling without an always-visible rail. */
+.sidebar .saved-list {
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  overscroll-behavior-y: contain;
+}
+.sidebar .saved-list:hover, .sidebar .saved-list:focus-within { scrollbar-color: #bec7c2 transparent; }
+.sidebar .saved-list:focus-visible { outline: 2px solid #8ba4b6; outline-offset: -2px; border-radius: 6px; }
+.sidebar .saved-list::-webkit-scrollbar { width: 4px; height: 0; }
+.sidebar .saved-list::-webkit-scrollbar-track { background: transparent; }
+.sidebar .saved-list::-webkit-scrollbar-thumb { background: transparent; border-radius: 8px; }
+.sidebar .saved-list::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+.sidebar .saved-list:hover::-webkit-scrollbar-thumb, .sidebar .saved-list:focus-within::-webkit-scrollbar-thumb { background: #bec7c2; }
+@media (max-width: 1200px) {
+  .welcome { padding-top: 28px; }
+  .welcome-intro { grid-template-columns: minmax(0, 1fr); gap: 16px; padding-bottom: 24px; }
+  .welcome h1 { font-size: 34px; }
+  .welcome-copy > p:not(.eyebrow) { font-size: 13px; max-width: none; margin-top: 10px; line-height: 1.6; }
+  .welcome-start > .muted { text-align: left; margin-top: 8px; }
+  .home-recent { margin-top: 24px; }
+  .recent-columns, .recent-row { grid-template-columns: minmax(0, 1fr) 140px 95px 18px; gap: 16px; }
+}
+@media (max-width: 1000px) {
+  .welcome { padding-top: 28px; }
+  .recent-columns, .recent-row { grid-template-columns: minmax(0, 1fr) 126px 80px 16px; gap: 12px; padding-inline: 16px; }
+}
+@media (max-width: 600px) {
+  .welcome { padding: 26px 20px; }
+  .welcome h1 { font-size: 30px; letter-spacing: -1px; }
+  .recent-columns { display: none; }
+  .recent-row { grid-template-columns: minmax(0, 1fr) 16px; gap: 10px; }
+  .recent-row time, .recent-state { display: none; }
+}
+@media (max-height: 750px) {
+  .sidebar { gap: 12px; padding-block: 18px 12px; }
+  .sidebar .workspace-navigation button { min-height: 34px; padding-block: 7px; }
+  .sidebar footer { padding-top: 6px; }
+  .sidebar footer p { padding-block: 6px; margin-top: 3px; }
+}
+@media (max-height: 600px) {
+  .sidebar { gap: 8px; padding-block: 12px 10px; }
+  .sidebar .workspace-navigation { gap: 1px; }
+  .sidebar .workspace-navigation button, .sidebar footer > button { min-height: 28px; padding-block: 5px; font-size: 12px; }
+  .sidebar .saved-section > .search { min-height: 30px; margin-block: 5px; padding-block: 6px; }
+  .sidebar footer p { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .recent-row, .recent-open { transition: none; }
+  .recent-row:hover .recent-open { transform: none; }
+}

@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from pp_evidence import analyse_capture, evidence_digest
+from pp_logs import analyse_input
 from pp_llm import APIConfig, ChatClient, LLMError, baseline_explanation, clean_text, MAX_QUESTION
 from pp_policy import preview_response
 
@@ -36,7 +37,7 @@ class RunStore:
 
 def run_analysis(capture: Path, output: Path, question, provider="rules", decoder="auto",
                  preview="investigate", target=None, duration=60, apply=False,
-                 client=None, cached_evidence=None):
+                 client=None, cached_evidence=None, selected_reference=None):
     question = clean_text(question, MAX_QUESTION)
     if provider not in {"rules", "api"}:
         raise ValueError("Unknown explanation provider.")
@@ -44,7 +45,7 @@ def run_analysis(capture: Path, output: Path, question, provider="rules", decode
     started = time.perf_counter()
     store.event("started", provider=provider, decoder=decoder, question=question)
     try:
-        evidence = cached_evidence if cached_evidence is not None else analyse_capture(capture, decoder)
+        evidence = cached_evidence if cached_evidence is not None else analyse_input(capture, decoder)
         digest = evidence_digest(evidence)
         store.write("evidence.json", evidence)
         store.event("evidence_ready", evidence_sha256=digest,
@@ -59,6 +60,7 @@ def run_analysis(capture: Path, output: Path, question, provider="rules", decode
                 explanation = baseline_explanation(evidence, question)
                 explanation["status"] = "fallback_after_api_failure"
                 explanation["api_error"] = {"code": exc.code, "message": str(exc)}
+                explanation['failed_attempt'] = exc.record
                 store.event("api_failed", error_code=exc.code)
         else:
             explanation = baseline_explanation(evidence, question)
@@ -66,14 +68,18 @@ def run_analysis(capture: Path, output: Path, question, provider="rules", decode
         response = preview_response(evidence, preview, target, duration, apply)
         store.event("response_preview", **response)
         result = {
-            "format_version": "1", "run_id": store.run_id, "recorded_at": now(),
+            "format_version": "2" if evidence.get('schema_version') == '2' else '1', "run_id": store.run_id, "recorded_at": now(),
             "execution_environment": {"os": platform.system(), "python": platform.python_version()},
             "question": question, "capture_sha256": evidence["capture"]["sha256"],
             "evidence_sha256": digest, "finding": evidence["finding"],
+            'finding_scope': ('Compatibility placeholder; no rule verdict applied to log input.' if evidence.get('input_kind') == 'network_log'
+                              else 'Legacy TCP comparator only; not the model assessment.'),
             "explanation": explanation, "response": response,
             "elapsed_seconds": round(time.perf_counter() - started, 4),
             "limitations": evidence["limitations"],
         }
+        if selected_reference:
+            result['selected_reference'] = selected_reference
         store.write("result.json", result)
         store.event("finished", result_file="result.json", executed=False)
         return result, evidence, store.directory

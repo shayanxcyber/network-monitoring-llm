@@ -23,6 +23,26 @@ def _paragraph(text):
 def render_report(result, evidence, directory):
     explanation = result["explanation"]
     answer = explanation["answer"]
+    if answer.get('schema_version') in ('2.0', '3.0'):
+        lines = ['PACKETPILOT | Evidence-led investigation', '=' * 64, 'LIVE API RESPONSE',
+                 f'Question: {result["question"]}', '', 'ASSESSMENT', answer['assessment'],
+                 _paragraph(answer['summary']), '', 'OBSERVATIONS']
+        for observation in answer['observations']:
+            lines.extend([_paragraph(observation['text']), 'References: ' + ', '.join(observation['references'])])
+        lines.extend(['', 'INTERPRETATION', _paragraph(answer['interpretation']), '', 'ALTERNATIVES',
+                      *map(_paragraph, answer['alternatives']), '', 'UNCERTAINTY', *map(_paragraph, answer['uncertainty']),
+                      '', 'COVERAGE: ' + answer['coverage']['status'], *map(_paragraph, answer['coverage']['limitations']),
+                      '', 'ADVICE ONLY - NOTHING EXECUTED'])
+        for item in answer['recommendations']:
+            lines.append(_paragraph(f'{item["action"]}: {item["rationale"]}'))
+        if explanation.get('harness_version'):
+            lines.extend(['', 'INVESTIGATION OPERATIONS',
+                          f'Model calls: {explanation["attempts"]}; tool calls: {len(explanation["tool_trace"])}; corrections: {explanation["correction_attempts"]}'])
+            for step in explanation['tool_trace']:
+                lines.append(f'{step["tool"]}: {"completed" if step["ok"] else "rejected"} — {step["arguments"]}')
+        lines.extend(['', 'QUESTIONS FOR OPERATOR', *map(_paragraph, answer['questions']),
+                      '', explanation['review_note'], f'Saved records: {directory}'])
+        return '\n'.join(lines) + '\n'
     label = "LIVE API RESPONSE" if explanation["source"] == "api" else "RULE-BASED RESULT - NO LLM OUTPUT"
     if explanation["status"] == "fallback_after_api_failure":
         label = "API UNAVAILABLE - RULE-BASED FALLBACK"
@@ -55,10 +75,19 @@ def render_report(result, evidence, directory):
 
 
 def _run(args, cached=None, question=None):
+    client = None
+    if args.provider == 'api':
+        from pp_agent import AgnoClient
+        from pp_settings import api_config
+        import uuid
+        root = Path(__file__).resolve().parents[2]
+        if not hasattr(args, 'agent_session'):
+            args.agent_session = str(uuid.uuid4())
+        client = AgnoClient(api_config(root), root / 'runtime/agent-history.sqlite3', args.agent_session)
     result, evidence, directory = run_analysis(
         Path(args.capture), Path(args.output), question or args.question,
         args.provider, args.decoder, args.preview, args.target, args.duration, args.apply,
-        cached_evidence=cached,
+        cached_evidence=cached, client=client,
     )
     report = render_report(result, evidence, directory)
     (directory / "operator-report.txt").write_text(report, encoding="utf-8")
