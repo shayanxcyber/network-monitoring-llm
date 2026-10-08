@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:packetpilot:log-evidence:1.0",
+  "title": "PacketPilot saved TShark field-log evidence 1.0",
+  "type": "object",
+  "required": ["schema_version", "log_schema_version", "input_kind", "capture", "log_records", "packets", "flows", "overview", "coverage", "limitations"],
+  "properties": {
+    "schema_version": {"const": "2"}, "log_schema_version": {"const": "1.0"}, "input_kind": {"const": "network_log"},
+    "capture": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sha256", "size_bytes", "format", "packet_count", "record_count"],
+      "properties": {
+        "sha256": {"$ref": "#/$defs/hash"}, "size_bytes": {"type": "integer", "minimum": 1, "maximum": 8388608},
+        "format": {"const": "tshark-fields-tsv"}, "packet_count": {"const": 0},
+        "record_count": {"type": "integer", "minimum": 1, "maximum": 10000}
+      }
+    },
+    "packets": {"const": []}, "flows": {"const": []},
+    "log_records": {"type": "array", "minItems": 1, "maxItems": 10000, "items": {"$ref": "#/$defs/record"}},
+    "coverage": {
+      "type": "object", "required": ["total_records", "decoded_records", "malformed_records", "unsupported_records", "available_fields", "unavailable", "decoded_packets"],
+      "properties": {
+        "total_records": {"type": "integer", "minimum": 1}, "decoded_records": {"type": "integer", "minimum": 1},
+        "malformed_records": {"type": "integer", "minimum": 0}, "unsupported_records": {"type": "integer", "minimum": 0},
+        "decoded_packets": {"const": 0}, "available_fields": {"type": "array", "items": {"type": "string"}},
+        "unavailable": {"type": "array", "items": {"type": "string"}}
+      }, "additionalProperties": false
+    },
+    "overview": {"type": "object"}, "limitations": {"type": "array", "minItems": 1, "items": {"type": "string"}}
+  },
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "record": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "line_number", "byte_offset", "byte_length", "line_sha256", "status", "source_frame_number", "timestamp", "reported_frame_length", "protocol", "ipv4", "tcp", "udp", "reason"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-f0-9]{64}:l[1-9][0-9]*$"},
+        "line_number": {"type": "integer", "minimum": 2, "maximum": 10001},
+        "byte_offset": {"type": "integer", "minimum": 1}, "byte_length": {"type": "integer", "minimum": 1, "maximum": 4096},
+        "line_sha256": {"$ref": "#/$defs/hash"}, "status": {"enum": ["decoded", "unsupported", "malformed"]},
+        "source_frame_number": {"type": ["integer", "null"], "minimum": 1}, "timestamp": {"type": ["string", "null"], "maxLength": 120},
+        "reported_frame_length": {"type": ["integer", "null"], "minimum": 1}, "protocol": {"enum": ["TCP", "UDP", "OTHER", "NON_IPV4", "UNKNOWN"]},
+        "ipv4": {"type": ["object", "null"]}, "tcp": {"type": ["object", "null"]}, "udp": {"type": ["object", "null"]},
+        "reason": {"type": ["string", "null"], "maxLength": 180}
+      }
+    }
+  }
+}
