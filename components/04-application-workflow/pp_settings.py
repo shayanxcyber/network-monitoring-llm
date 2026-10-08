@@ -23,4 +23,6 @@ def api_config(root, secret_file=None):
                 key = value.strip()
                 break
     return APIConfig(values["base_url"], values["model"], key,
-                     timeout=values["timeout_seconds"], thinking=values["thinking"], retries=0)
+                     timeout=values["timeout_seconds"], thinking=values["thinking"], retries=0,
+                     reasoning_effort=values.get("reasoning_effort", ""),
+                     max_output_tokens=values.get("max_output_tokens"))

@@ -36,6 +36,12 @@ class ReviewStore:
                     created_at TEXT NOT NULL, result TEXT NOT NULL
                 );
                 CREATE INDEX IF NOT EXISTS turns_by_review ON turns(review_id, created_at);
+                CREATE TABLE IF NOT EXISTS lab_bindings (
+                    review_id TEXT PRIMARY KEY REFERENCES reviews(id), binding TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS response_actions (
+                    action_id TEXT PRIMARY KEY, review_id TEXT NOT NULL REFERENCES reviews(id)
+                );
             """)
 
     @contextmanager
@@ -59,7 +65,16 @@ class ReviewStore:
     def list(self):
         with self.connect() as db:
             return [dict(row) for row in db.execute(
-                "SELECT id,title,provider,created_at,updated_at FROM reviews ORDER BY updated_at DESC,id")]
+                "SELECT id,title,provider,created_at,updated_at,"
+                "(SELECT COUNT(*) FROM turns WHERE turns.review_id=reviews.id) AS turn_count "
+                "FROM reviews ORDER BY updated_at DESC,id")]
+
+    def action_sources(self):
+        """Read only linked action identities and source metadata, not evidence blobs."""
+        with self.connect() as db:
+            return [dict(row) for row in db.execute(
+                'SELECT a.action_id,r.id AS review_id,r.title AS review_title,r.updated_at '
+                'FROM response_actions a JOIN reviews r ON r.id=a.review_id ORDER BY r.updated_at DESC,a.action_id')]
 
     def get(self, review_id):
         with self.connect() as db:
@@ -72,7 +87,19 @@ class ReviewStore:
                 "SELECT result FROM turns WHERE review_id=? ORDER BY created_at,id", (review_id,))]
             review["previews"] = [dict(row) | {"result": json.loads(row["result"])} for row in db.execute(
                 "SELECT id,created_at,result FROM previews WHERE review_id=? ORDER BY created_at,id", (review_id,))]
+            binding = db.execute('SELECT binding FROM lab_bindings WHERE review_id=?', (review_id,)).fetchone()
+            review['lab_binding'] = json.loads(binding['binding']) if binding else None
+            review['response_action_ids'] = [r['action_id'] for r in db.execute(
+                'SELECT action_id FROM response_actions WHERE review_id=?', (review_id,))]
             return review
+
+    def bind_lab(self, review_id, binding):
+        with self.connect() as db:
+            db.execute('INSERT INTO lab_bindings VALUES (?,?)', (review_id, json.dumps(binding)))
+
+    def add_action(self, review_id, action_id):
+        with self.connect() as db:
+            db.execute('INSERT INTO response_actions VALUES (?,?)', (action_id, review_id))
 
     def begin_request(self, request_id, review_id):
         with self.connect() as db:
