@@ -1,0 +1,19 @@
+.venv/
+.venv-host/
+__pycache__/
+*.py[cod]
+node_modules/
+runtime/
+runs/
+*.sqlite3
+*.sqlite3-*
+.pytest_cache/
+.DS_Store
+.env
+.env.*
+!.env.example
+secrets.env
+
+# Private provider continuity may contain non-exported reasoning and user context.
+*agent-history*.sqlite3*
+*private-history*.sqlite3*
