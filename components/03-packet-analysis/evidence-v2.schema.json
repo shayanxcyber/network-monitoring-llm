@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:packetpilot:evidence:2",
+  "title": "PacketPilot capture evidence v2",
+  "type": "object",
+  "required": ["schema_version", "capture", "decoder", "packets", "flows", "coverage", "overview", "legacy_assessment", "facts", "finding", "limitations"],
+  "properties": {
+    "schema_version": {"const": "2"},
+    "capture": {
+      "type": "object", "required": ["sha256", "packet_count", "size_bytes", "format", "link_type", "snapshot_bytes", "timestamp_resolution"],
+      "properties": {
+        "sha256": {"$ref": "#/$defs/hash"}, "packet_count": {"type": "integer", "minimum": 1, "maximum": 10000},
+        "size_bytes": {"type": "integer", "minimum": 24, "maximum": 8388608},
+        "format": {"const": "classic-pcap"}, "link_type": {"const": 1},
+        "snapshot_bytes": {"type": "integer", "minimum": 1, "maximum": 8388608},
+        "timestamp_resolution": {"enum": ["microseconds", "nanoseconds"]}
+      }, "additionalProperties": false
+    },
+    "decoder": {
+      "type": "object", "required": ["name", "version", "normalizer", "tshark_verification"],
+      "properties": {
+        "name": {"enum": ["scapy", "tshark"]}, "version": {"type": "string"}, "normalizer": {"type": "string"},
+        "tshark_verification": {"type": ["null", "object"]}
+      }, "additionalProperties": false
+    },
+    "packets": {"type": "array", "minItems": 1, "maxItems": 10000, "items": {"$ref": "#/$defs/packet"}},
+    "flows": {"type": "array", "items": {"$ref": "#/$defs/flow"}},
+    "coverage": {
+      "type": "object", "required": ["total_packets", "decoded_packets", "unsupported_packets", "malformed_packets", "truncated_packets", "complete_for_supported_headers", "issues", "scope"],
+      "properties": {
+        "total_packets": {"$ref": "#/$defs/count"}, "decoded_packets": {"$ref": "#/$defs/count"},
+        "unsupported_packets": {"$ref": "#/$defs/count"}, "malformed_packets": {"$ref": "#/$defs/count"},
+        "truncated_packets": {"$ref": "#/$defs/count"}, "complete_for_supported_headers": {"type": "boolean"},
+        "scope": {"type": "string"}, "issues": {"type": "array", "items": {"type": "object", "required": ["code", "packet_refs"], "properties": {"code": {"type": "string"}, "packet_refs": {"$ref": "#/$defs/refs"}}, "additionalProperties": false}}
+      }, "additionalProperties": false
+    },
+    "overview": {"type": "object", "required": ["protocol_counts", "decoded_protocol_counts", "flow_count", "captured_bytes", "wire_bytes", "first_time", "last_time", "duration_seconds", "out_of_order_timestamps"]},
+    "legacy_assessment": {"type": "object", "required": ["purpose", "scope", "finding", "packet_refs"], "properties": {"purpose": {"type": "string"}, "scope": {"type": "string"}, "finding": {"$ref": "#/$defs/finding"}, "packet_refs": {"$ref": "#/$defs/refs"}}, "additionalProperties": false},
+    "finding": {"$ref": "#/$defs/finding"}, "candidate_source": {"type": ["null", "string"]}, "lab_server": {"type": "string"},
+    "distinct_ports": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/port"}},
+    "facts": {"type": "array", "items": {"type": "object", "required": ["id", "text", "packet_refs"], "properties": {"id": {"type": "string"}, "text": {"type": "string"}, "packet_refs": {"$ref": "#/$defs/refs"}}, "additionalProperties": false}},
+    "rule": {"type": "object", "required": ["id", "ports", "seconds"]},
+    "limitations": {"type": "array", "items": {"type": "string"}}
+  }, "additionalProperties": false,
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "count": {"type": "integer", "minimum": 0},
+    "port": {"type": "integer", "minimum": 0, "maximum": 65535},
+    "refs": {"type": "array", "uniqueItems": true, "items": {"type": "integer", "minimum": 1, "maximum": 10000}},
+    "finding": {"enum": ["scan_like", "no_scan_pattern", "insufficient_evidence"]},
+    "ethernet": {"type": ["object", "null"], "required": ["src", "dst", "type"], "properties": {"src": {"type": "string"}, "dst": {"type": "string"}, "type": {"$ref": "#/$defs/port"}}, "additionalProperties": false},
+    "ipv4": {
+      "type": ["object", "null"], "required": ["src", "dst", "protocol_number", "ttl", "id", "header_bytes", "total_bytes", "fragment_offset", "more_fragments", "checksum", "options_hex"],
+      "properties": {
+        "src": {"type": "string", "format": "ipv4"}, "dst": {"type": "string", "format": "ipv4"},
+        "protocol_number": {"type": "integer", "minimum": 0, "maximum": 255}, "ttl": {"type": "integer", "minimum": 0, "maximum": 255},
+        "id": {"$ref": "#/$defs/port"}, "header_bytes": {"$ref": "#/$defs/count"}, "total_bytes": {"$ref": "#/$defs/count"},
+        "fragment_offset": {"$ref": "#/$defs/count"}, "more_fragments": {"type": "boolean"}, "checksum": {"$ref": "#/$defs/port"},
+        "options_hex": {"type": "string", "pattern": "^([0-9a-f]{2})*$"}
+      }, "additionalProperties": false
+    },
+    "tcp": {
+      "type": ["object", "null"], "required": ["src_port", "dst_port", "flags", "flag_names", "sequence", "acknowledgement", "window", "header_bytes", "checksum", "urgent_pointer", "options_hex", "payload_bytes"],
+      "properties": {
+        "src_port": {"$ref": "#/$defs/port"}, "dst_port": {"$ref": "#/$defs/port"}, "flags": {"type": "integer", "minimum": 0, "maximum": 511},
+        "flag_names": {"type": "array", "uniqueItems": true, "items": {"enum": ["FIN", "SYN", "RST", "PSH", "ACK", "URG", "ECE", "CWR", "NS"]}},
+        "sequence": {"type": "integer", "minimum": 0, "maximum": 4294967295}, "acknowledgement": {"type": "integer", "minimum": 0, "maximum": 4294967295},
+        "window": {"$ref": "#/$defs/port"}, "header_bytes": {"type": "integer", "minimum": 20, "maximum": 60},
+        "checksum": {"$ref": "#/$defs/port"}, "urgent_pointer": {"$ref": "#/$defs/port"},
+        "options_hex": {"type": "string", "pattern": "^([0-9a-f]{2})*$"}, "payload_bytes": {"$ref": "#/$defs/count"}
+      }, "additionalProperties": false
+    },
+    "udp": {
+      "type": ["object", "null"], "required": ["src_port", "dst_port", "length", "checksum", "payload_bytes"],
+      "properties": {"src_port": {"$ref": "#/$defs/port"}, "dst_port": {"$ref": "#/$defs/port"}, "length": {"type": "integer", "minimum": 8, "maximum": 65535}, "checksum": {"$ref": "#/$defs/port"}, "payload_bytes": {"$ref": "#/$defs/count"}}, "additionalProperties": false
+    },
+    "packet": {
+      "type": "object", "required": ["id", "packet", "timestamp", "time", "file_offset", "captured_bytes", "wire_bytes", "frame_sha256", "status", "issues", "protocol", "ethernet", "ipv4", "tcp", "udp", "flow_id"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[0-9a-f]{64}:p[1-9][0-9]*$"}, "packet": {"type": "integer", "minimum": 1, "maximum": 10000},
+        "timestamp": {"type": "string", "pattern": "^[0-9]+\\.[0-9]{6}([0-9]{3})?$"}, "time": {"type": "number", "minimum": 0},
+        "file_offset": {"type": "integer", "minimum": 40}, "captured_bytes": {"type": "integer", "minimum": 1}, "wire_bytes": {"type": "integer", "minimum": 1},
+        "frame_sha256": {"$ref": "#/$defs/hash"}, "status": {"enum": ["decoded", "unsupported", "malformed", "truncated"]},
+        "issues": {"type": "array", "items": {"type": "string"}}, "protocol": {"enum": ["Ethernet", "ARP", "IPv6", "VLAN", "IPv4", "TCP", "UDP"]},
+        "ethernet": {"$ref": "#/$defs/ethernet"}, "ipv4": {"$ref": "#/$defs/ipv4"}, "tcp": {"$ref": "#/$defs/tcp"}, "udp": {"$ref": "#/$defs/udp"},
+        "flow_id": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}:f[0-9a-f]{16}$"},
+        "payload": {"type": "object", "required": ["length", "preview_hex", "preview_limit_bytes", "preview_truncated"], "properties": {"length": {"$ref": "#/$defs/count"}, "preview_hex": {"type": "string", "maxLength": 128, "pattern": "^([0-9a-f]{2})*$"}, "preview_limit_bytes": {"const": 64}, "preview_truncated": {"type": "boolean"}}, "additionalProperties": false}
+      }, "additionalProperties": false
+    },
+    "flow": {
+      "type": "object", "required": ["id", "protocol", "endpoint_a", "endpoint_b", "packet_refs", "packet_count", "captured_bytes", "first_time", "last_time", "duration_seconds", "directions", "tcp_flag_counts"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[0-9a-f]{64}:f[0-9a-f]{16}$"}, "protocol": {"enum": ["TCP", "UDP"]},
+        "endpoint_a": {"$ref": "#/$defs/endpoint"}, "endpoint_b": {"$ref": "#/$defs/endpoint"}, "packet_refs": {"$ref": "#/$defs/refs"},
+        "packet_count": {"type": "integer", "minimum": 1}, "captured_bytes": {"$ref": "#/$defs/count"},
+        "first_time": {"type": "number", "minimum": 0}, "last_time": {"type": "number", "minimum": 0}, "duration_seconds": {"type": "number", "minimum": 0},
+        "directions": {"type": "object", "required": ["a_to_b", "b_to_a"], "properties": {"a_to_b": {"$ref": "#/$defs/count"}, "b_to_a": {"$ref": "#/$defs/count"}}, "additionalProperties": false},
+        "tcp_flag_counts": {"type": "object", "additionalProperties": {"$ref": "#/$defs/count"}}
+      }, "additionalProperties": false
+    },
+    "endpoint": {"type": "object", "required": ["address", "port"], "properties": {"address": {"type": "string", "format": "ipv4"}, "port": {"$ref": "#/$defs/port"}}, "additionalProperties": false}
+  }
+}
