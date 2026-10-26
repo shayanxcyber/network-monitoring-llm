@@ -1,55 +1,29 @@
-# What the early demonstration can show
+# Demonstration evidence and walkthrough
 
-Keep the presentation at the user's 8–10-minute target. The first example answers
-one simple question: does this traffic need checking, and why?
+This guide describes demonstrable product behaviour, not a slide-production plan. Use [SETUP.md](../SETUP.md) to run the application and [validation](VALIDATION.md) for the latest recorded outcomes.
 
-## Real artifacts now available
+## Saved-evidence investigation
 
-- Two synthetic PCAP files and a separate explanation/label manifest.
-- Packet-derived findings, exact packet references and readable rule-based results,
-  verified through both Scapy and Ubuntu TShark.
-- A typed response preview and actual timestamped host/guest audit records.
-- A working light browser interface, saved reviews and linked evidence.
-- Two actual hosted-model answers in one conversation, including a follow-up;
-  both remained available after a backend restart.
-- A 71-pass Ubuntu functional/negative test record, separate from the real API check.
+Import a supported capture or field log, inspect its coverage and ask a question about what the records support. Open a cited original to check direction, flags, timing and source identity. A follow-up should preserve source-scoped context without turning the previous answer into new evidence.
 
-These are genuine preliminary results from saved synthetic captures. They are
-not a live attack demonstration, production deployment or broad accuracy benchmark.
-Open the saved AI review and [validation record](VALIDATION.md); do not make
-extra paid calls merely to recreate evidence that is already retained.
+The supplied normal.pcap and port-check.pcap are repeatable constructed examples. Their labels are not model evidence and they are not real attacks. Related-source examples can show a baseline/problem comparison, but known fixture timing must not be presented as measured production degradation.
 
-## Useful screenshots for the slide-making step
+## Related evidence and reports
 
-The Windows preview is forwarded over SSH to the actual Ubuntu backend. The user
-explicitly approved this capture route; it is not a second Windows implementation.
-Screenshot records are under ../evidence/screenshots/ and the exported saved AI
-review is ../evidence/2026-08-31-ai-review.json. The first capture is a compact
-browser-panel view; the complete answer/history remains in the export and live UI.
+Link supported sources, assign roles and select the sources for the next question. Apply a comparison pair and service port. Explain each source's observation span, record/byte units, exclusions and candidate timing rather than inferring a unique cause from a delta.
 
-The user requested a small, practical set for the slides: retain these two
-screenshots, without building a larger screenshot collection.
+Inspect the difference between applied results and unsent control edits. Export a readable report or structured JSON and verify the source identities, saved answer scope, measurements and available action records. [Investigation depth](INVESTIGATION_DEPTH.md) defines these semantics.
 
-1. The port-check review: a real AI explanation, source/port evidence and the
-   non-executing response preview in one view.
-2. The normal comparison: the fixed-rule explanation that no port-check pattern
-   was found, clearly labelled as an offline rules result rather than an AI answer.
+## Current-lab response
 
-Use only a readable portion that supports the slide's point. Re-capture from the
-same saved review at presentation-window size only if needed for legibility.
-Keep the saved reviews/exports as a fallback and label results as recorded. Do
-not describe a controlled HTTP test response as model inference.
+With the optional broker installed, collect fresh bounded lab traffic. Review a typed temporary block or rate-limit proposal, then separately approve the exact operation. Show the selected and control observations, restoration and the final receipt.
 
-## Simple speaking sequence
+Offline uploads cannot authorise a current change. Use only the fixed disconnected scope and make expiry/rollback behaviour visible. A recorded result is a valid fallback when labelled as recorded; it is not proof that a new action ran during a presentation. See [Linux response](LINUX_RESPONSE.md).
 
-1. PacketPilot: who the operator is and why packet evidence is hard to interpret.
-2. The small-business setting and one server used for the first test.
-3. Normal traffic versus a computer trying several ports.
-4. How the capture becomes evidence, an explanation and a reviewed response.
-5. What currently works, with actual screenshots.
-6. What still needs building/testing and the six role responsibilities.
+## Selecting evidence
 
-Retain the assessment's resource, risk, evaluation and milestone points when
-turning this outline into slides. Keep PacketPilot/AI branding in the presentation
-interface; preserve accurate provider metadata in the technical evidence.
-Slide production and rehearsal are the next task, not completed by this setup.
+Useful figures include a source-qualified answer, original packet or physical log line, applied comparison, public tool activity, exact approval, measured selective effect and restoration. Diagrams can explain evidence flow and privilege boundaries, but are not execution receipts.
+
+Full-size images and retained raw results are supplied separately in the delivery evidence archive. They are not claimed to exist under an unshipped evidence/ or private runs/ directory in this source package. The repository contains the implementation, declared fixtures and reproducible checks; private conversation databases and credentials are excluded.
+
+The earliest demonstration used a rules-first preview and two hosted answers. Those results remain historical. The current product supports evidence-led tools, related-source investigation, managed collection and separately approved reversible lab responses. Neither the old example nor the final software test count establishes broad detection accuracy.

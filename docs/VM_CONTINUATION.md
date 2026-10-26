@@ -1,130 +1,69 @@
-# Ubuntu setup and continuation
+# Ubuntu lab operation
 
-Verified: 31 August 2026. The approved setup is complete for the first saved-capture
-prototype. Start from this checkpoint; do not reinstall Ubuntu or repeat API setup.
+PacketPilot runs locally on Ubuntu with Python 3.12 and TShark. The built browser interface is included. Node and Vite are not required for ordinary use.
 
-## Open PacketPilot
+See [SETUP.md](../SETUP.md) for the complete installation procedure and [README.md](../README.md) for supported inputs and the operator workflow.
 
-In Ubuntu, open the application menu and choose **PacketPilot**, or run:
+## File-only investigation
 
-    cd /home/capstone/packetpilot
+From the complete project folder, create the Python environment and install the supplied requirements:
+
+    sudo apt update
+    sudo apt install python3-venv tshark
+    python3 -m venv .venv
+    .venv/bin/python -m pip install -r requirements-ubuntu-verified.txt
+
+Set `lab_enabled = false` under `[application]` in settings.toml for file-only operation. This also prevents this application from contacting an optional broker already installed on the machine.
+
+Start the application:
+
     .venv/bin/python launch.py
 
-The launcher starts the local backend if needed and opens
-http://127.0.0.1:8765/ in the guest browser. It also supports `--no-browser`.
-The application keeps running independently of the setup SSH terminal.
+The normal browser address is http://127.0.0.1:8765. Keep the service on loopback. The launcher may reuse an existing local server; it does not replace an unrelated program using the port.
 
-The Windows in-app preview uses an SSH forward to the same guest application.
-A Windows preview connection is optional; the product itself runs inside Ubuntu.
-If a preview becomes unavailable, first verify that the VM, application and
-forward are running. Do not assume localhost is blocked.
+Opening saved evidence is offline. Sending a hosted question requires the operator's own provider key. Run `.venv/bin/python configure_key.py` to configure it privately. Credentials, private conversation databases and local environments are not part of the source release.
 
-## Verified environment
+## Optional disconnected response lab
 
-| Item | Actual state |
-|---|---|
-| Guest | Ubuntu 24.04.4 LTS; kernel 7.0.0-28-generic |
-| Allocated resources | 6 vCPUs, 12 GB RAM; about 11 GiB visible in Linux |
-| Network | VMware NAT; guest 192.168.37.128 at this checkpoint |
-| Disk | About 49 GB root filesystem, about 35 GB free during setup |
-| Core tools | Git 2.43.0, Python 3.12.3, pip 24.0, tcpdump 4.99.4 |
-| VMware integration | open-vm-tools 13.0.0 package active; desktop integration package installed |
-| SSH | OpenSSH 9.6p1 package; verified dedicated-key login working |
-| Packet tools | TShark and Wireshark 4.2.2 installed; saved-capture decoder checks pass |
-| Python application | Isolated /home/capstone/packetpilot/.venv |
-| Framework | Agno 3.0.4, OpenAI SDK 2.54.0, SQLAlchemy 2.0.52 |
-| Web stack | FastAPI 0.141.1, Uvicorn 0.52.4, HTTPX 0.28.1, python-multipart 0.0.32 |
-| Packet library | Scapy 2.7.0 |
-| Existing snapshot | Preserved unchanged; no additional snapshot or restore performed |
-| Mininet | Not installed in this setup; reserved for the live-topology phase |
+The broker uses a dedicated local operator account named `capstone`. Install it only in a separate authorised lab VM, not on a shared production host. While signed in as that operator, follow SETUP.md, including:
 
-Observed direct Python versions are retained in `requirements-ubuntu-verified.txt`.
-This is not a complete transitive lockfile. Use `requirements-app.txt` for a fresh
-project environment and rerun the checks after dependency changes.
+    sudo apt install iproute2 iptables tcpdump
+    sudo python3 components/05-safe-network-response/install_response_service.py --install
 
-## Where things live
+Then set `lab_enabled = true` and restart the application. Run only one broker for the reserved namespaces. A second application may use the existing broker; it must not start another broker against the same lab.
 
-- Canonical source:
-  D:/Cybersecurity Learning System/Current Semester/Subjects/cybersecurity-capstone-studio/Roadshow/PacketPilot
-- Guest working copy: /home/capstone/packetpilot
-- Application menu launcher: /home/capstone/.local/share/applications/packetpilot.desktop
-- Non-secret settings: /home/capstone/packetpilot/settings.toml
-- API key: /home/capstone/.config/packetpilot/secrets.env
-- Conversations and review index: /home/capstone/packetpilot/runtime/
-- Per-run evidence, answers and audit records: /home/capstone/packetpilot/runs/
-- Backend log: /home/capstone/packetpilot/runtime/server.log
-- Host VM configuration: C:/Users/User/Downloads/capstone vm/Cybersecurity Capstone Ubuntu.vmx
-- Team Git checkout, deliberately separate:
-  D:/Cybersecurity Learning System/Current Semester/Subjects/cybersecurity-capstone-studio/Team Repository/network-monitoring-llm
+The fixed lab has a selected client at 10.77.0.20, a control client at 10.77.0.30 and a service at 10.77.0.10:8080. Its reserved namespaces are disconnected from external networks. The broker rejects unexpected existing namespace or traffic-control state rather than adopting it.
 
-The user entered the API key successfully. Its file is owner-only (mode 600).
-Do not ask for it again unless a real authentication failure requires a change.
-If replacement is necessary, run `.venv/bin/python configure_key.py` inside the
-guest. Input stays hidden; never print or export the saved key.
+## Collection and diagnostics
 
-## SSH continuation from Windows
+Managed collection observes the fixed service interface and TCP/8080 profile. Start, stop, cancel and import are distinct operations. The limits are 2-20 seconds, 5,000 packets and 1 MiB. Cancelled or interrupted collection is not successful evidence acquisition.
 
-Dedicated private key path: C:/Users/User/.ssh/packetpilot_vm_ed25519.
-Do not read, display or include this key in a handoff package.
+Current health and complete-transfer checks generate active requests from the fixed clients. The interface shows the target, control and check profile before execution. Compare only measurements with matching source, target, objective, profile, lab generation and explicit baseline association.
 
-Verified guest ED25519 fingerprint:
+A reboot can change lab identity. Old retained evidence remains useful for offline analysis, but it does not automatically retain authority for a current response.
 
-    SHA256:59KVDrWmYqaivTDxSP0EVvs446eR2r5/4TYFrJ0XJus
+## Approval and restoration
 
-The Windows client required an explicit compatible key-exchange selection:
+Review the proposal's exact target, duration, commands and reversal. A separate one-time operator approval is required. The model cannot approve itself or execute arbitrary shell text.
 
-    ssh -i C:/Users/User/.ssh/packetpilot_vm_ed25519 -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o KexAlgorithms=curve25519-sha256 -o HostKeyAlgorithms=ssh-ed25519 capstone@192.168.37.128
+After an allowed block or rate limit, inspect both selected-client and control results. Use the restoration control when appropriate. Independent broker expiry removes its own change even when the web application is stopped.
 
-For the optional Windows browser forward, use the same options with:
+If the application reports `rollback_failed` or a broker fault, do not begin another response. Inspect the actual status and resolve restoration first. Do not delete unknown firewall or traffic-control rules.
 
-    -N -L 127.0.0.1:8765:127.0.0.1:8765
+## Local state and recovery
 
-Retain strict host-key checking. If the DHCP address changes, identify the VM
-again rather than trusting an arbitrary replacement at the old address.
-Normal authorised sudo over SSH does not require repeated permission questions.
-User authentication dialogs and Windows UAC remain direct-user handoffs. No VM
-password belongs in these files, command arguments or logs.
+Application reviews, retained originals, private continuity and logs are stored under runtime/ and runs/. These directories are ignored by Git and are not included in the source handoff. Preserve them separately when upgrading.
 
-## What passed
+Stop the application before making an ordinary database copy, or use SQLite's backup API. A source rollback must be compatible with the retained database. Do not replace the original bytes of an existing evidence identity.
 
-- Both generated PCAPs decode with TShark and agree with Scapy.
-- Initial Ubuntu checking exposed a TShark Boolean-format mismatch; it was fixed
-  and covered by a regression test.
-- Final suite: **71 passed, zero failures/errors/skips**.
-- Two real AI questions succeeded in one saved review; the second request carried
-  the preceding question and answer. Total reported usage: 2,376 tokens.
-- Saved reviews and both answers survived backend restart.
-- The application shows evidence links, saved conversations, clear rules-only
-  fallback and a bounded source-block preview. No network action executes.
-- The operator UI uses PacketPilot/AI labels. Actual provider/model identifiers
-  remain in technical configuration and audit records.
+For a foreground server, Ctrl+C stops the Python process. Broker lifetime and response expiry are separate from the browser or application process.
 
-See [Validation](VALIDATION.md) for exact run IDs and retained records. Opening a
-review or inspecting evidence does not call the model; submitting an AI question does.
+## Verification
 
-## Next action
+Run the documented checks from the complete project folder:
 
-Use the verified result for the 8–10-minute proposal roadshow. Explain what exists
-and what is still planned. Do not extend the implementation merely to fill slides.
+    .venv/bin/python -m unittest discover -s components/06-testing-evaluation -p "test_*.py"
 
-Later work includes a justified live topology, additional independent traffic
-cases, stronger explanation-quality evaluation, resource measurements and any
-separately agreed network-control executor/rollback. Those are not completed by
-this setup. No GitHub push, slides or official LabArchives entry has been made.
+TShark-dependent checks need the real executable. An unavailable dependency is a skip, not a pass. Some tests deliberately simulate provider errors or unavailable tools. Read the suite result and the expected case, not isolated negative-test log messages.
 
-## Setup history and boundaries
-
-The original OS/core-package checkpoint was preserved. After the user installed
-and started OpenSSH, the fingerprint was matched and key access established.
-Only missing first-prototype dependencies were added. TShark/Wireshark were
-installed from Ubuntu packages; non-root live-capture permissions were not enabled.
-The app binds only to guest loopback. There was no router forwarding, root-login
-enablement, passwordless sudo or firewall disabling.
-
-Computer-use Escape cancelled a desktop check; the user explicitly resumed and
-later unlocked Ubuntu. Background SSH/application work remained available.
-Earlier `PacketPilot-pre-VM-2026-08-31.zip` and transfer archives are dated
-snapshots, not the current canonical source.
-
-[Ubuntu OpenSSH documentation](https://ubuntu.com/server/docs/how-to/security/openssh-server/) ·
-[TShark manual](https://www.wireshark.org/docs/man-pages/tshark.html)
+This guide describes a portable operator procedure. It does not depend on a particular host's VM path, SSH key, address or saved credentials.
