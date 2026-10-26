@@ -4,8 +4,10 @@ base_url = "https://api.deepseek.com"
 model = "deepseek-flash"
 thinking = "enabled"
 reasoning_effort = "max"
-max_output_tokens = 65536
+# Omit optional generation override; provider limits still apply.
 timeout_seconds = 300
 
 [application]
 port = 8765
+# Set false for file-only use, including on a machine with a shared lab broker.
+lab_enabled = true

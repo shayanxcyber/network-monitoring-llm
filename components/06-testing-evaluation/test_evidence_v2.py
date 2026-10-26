@@ -94,6 +94,18 @@ class EvidenceV2Tests(unittest.TestCase):
             mutate(changed)
             self.assertFalse(self.validator.is_valid(changed))
 
+    def test_decode_bounds_are_optional_strict_and_nonnegative(self):
+        value = self.analyse('mixed-malformed')
+        self.validator.validate(value)
+        self.assertNotIn('decode_bounds', self.analyse('normal')['packets'][0])
+        for mutate in (lambda b: b.update(ipv4_shortfall_bytes=-1),
+                       lambda b: b.update(tcp_tuple_identified=True),
+                       lambda b: b.update(unexpected_field=1),
+                       lambda b: b.pop('saved_ipv4_bytes')):
+            changed = copy.deepcopy(value)
+            mutate(changed['packets'][-1]['decode_bounds'])
+            self.assertFalse(self.validator.is_valid(changed))
+
     def test_packet_offsets_hashes_and_full_reference_membership(self):
         for name, source in self.sources.items():
             value = self.analyse(name)
