@@ -1,7 +1,7 @@
 {
   "interface": "react-premium-workspace-1.1",
-  "built_at": "2026-10-04T14:57:37.998Z",
-  "node": "v22.23.2",
+  "built_at": "2026-10-23T09:43:28.280Z",
+  "node": "v24.19.0",
   "dependencies": [
     {
       "name": "@assistant-ui/core",

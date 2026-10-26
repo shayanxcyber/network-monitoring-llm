@@ -140,8 +140,9 @@ def build_request(evidence, question, config):
         ],
         "response_format": {"type": "json_object"},
         "stream": False,
-        "max_tokens": config.max_output_tokens or (32768 if config.thinking == "enabled" else MAX_OUTPUT_TOKENS if modern else 900),
     }
+    if config.max_output_tokens is not None:
+        payload["max_tokens"] = config.max_output_tokens
     if config.thinking != "enabled":
         payload["temperature"] = 0
     if config.reasoning_effort:

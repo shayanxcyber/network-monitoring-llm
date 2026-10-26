@@ -10,12 +10,14 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from pp_context import build_context, encoded, MAX_CONTEXT_BYTES
+from pp_context import build_context, encoded, MAX_CONTEXT_BYTES, required_coverage_status
 from pp_tcp_relationships import analyse_tcp_exchanges, scalar_paths
+from pp_semantics import field_semantics
 
-TOOL_VERSION = 'packetpilot-evidence-tools-3.1'
+TOOL_VERSION = 'packetpilot-evidence-tools-3.6'
 MAX_TOOL_CALLS = 8
 MAX_TOOL_BYTES = 48_000
+DISCLOSURE_RESERVE = 1024
 
 
 def json_tool(function):
@@ -35,16 +37,16 @@ class EvidenceWorkspace:
 
     @property
     def tool_names(self):
-        return {'get_packets', 'get_flow', 'summarize_connections', 'inspect_tcp_exchanges'}
+        return {'get_packets', 'get_flow', 'summarize_connections', 'inspect_tcp_exchanges', 'get_code_reference'}
 
     @property
     def tools(self):
-        return [json_tool(f) for f in (self.get_packets, self.get_flow, self.summarize_connections, self.inspect_tcp_exchanges)]
+        return [json_tool(f) for f in (self.get_packets, self.get_flow, self.summarize_connections, self.inspect_tcp_exchanges,self.get_code_reference)]
 
     def __init__(self, evidence, question, deadline=None):
         self.evidence = copy.deepcopy(evidence)
         self.digest = evidence['capture']['sha256']
-        self.deadline = deadline or (time.monotonic() + 600)
+        self.deadline = deadline or (time.monotonic() + 300)
         self.trace = []
         self.supplied = {}
         self.aggregates = {}
@@ -54,7 +56,7 @@ class EvidenceWorkspace:
         self.aliases.update({p['id']: f'p{p["packet"]}' for p in self.packets.values()})
         self.aliases.update({f['id']: key for key, f in self.flows.items()})
         self.context = build_context(self.evidence, question)
-        self.context['context_version'] = 'packetpilot-investigation-context-3.1'
+        self.context['context_version'] = 'packetpilot-investigation-context-3.2'
         self.context['reference_policy'] = 'Use the short id of a supplied record. Backend resolves it to this capture; never construct a hash or another record id.'
         self.context['tool_policy'] = {'version': TOOL_VERSION, 'max_calls': MAX_TOOL_CALLS,
                                        'scope': 'Selected saved evidence only; no filesystem or network actions.'}
@@ -66,25 +68,50 @@ class EvidenceWorkspace:
         self.context['connections'] = self._supply(aggregate)
         self.context['measurement_fields'] = {key: scalar_paths(self.context[key]) for key in ('capture','overview','coverage','connections')}
         self.context['evidence_capabilities'] = {'packet_sequence_fields':True,
+            'application_success_supported':False,
             'tcp_relationships':'Use inspect_tcp_exchanges for a bounded SYN/reply/ACK relationship calculation with its supporting references.',
             'missing_scope':'Unknown/malformed records and omitted detail are different limitations; neither proves traffic never occurred.'}
+        self.context['field_semantics'] = field_semantics('pcap')
         # Keep complete small captures. The existing 96-record/180k policy bounds
         # large captures; omitted records remain retrievable, not discarded.
-        while len(encoded(self.context)) > MAX_CONTEXT_BYTES and (self.context['flows'] or self.context['packets']):
+        while len(encoded(self.context)) + DISCLOSURE_RESERVE > MAX_CONTEXT_BYTES and (self.context['flows'] or self.context['packets']):
             key = 'flows' if self.context['flows'] else 'packets'
             removed = self.context[key].pop()
             self.supplied.pop(removed['id'], None)
-        if len(encoded(self.context)) > MAX_CONTEXT_BYTES:
+        if len(encoded(self.context)) + DISCLOSURE_RESERVE > MAX_CONTEXT_BYTES:
             raise ValueError('Initial investigation context exceeds its byte limit.')
+        self.initial_packet_numbers = frozenset(p['packet'] for p in self.context['packets'])
+        self.initial_flow_ids = frozenset(f['id'] for f in self.context['flows'])
         self._selection()
+
+    def _aggregate_alias(self, full_id):
+        # Persist canonical query/capture hashes; use small local selectors only
+        # on the model wire. Never guess or accept an unsupplied reference.
+        if full_id not in self.aliases:
+            self.aliases[full_id] = 'a' + str(1 + sum(v.startswith('a') for v in self.aliases.values()))
+        return self.aliases[full_id]
+
+    def coverage_disclosure(self):
+        return {'required_status': required_coverage_status(self.evidence, self.context),
+                'context_selection': copy.deepcopy(self.context['context_selection']),
+                'meaning': 'Supported decode and supplied-detail coverage only; not application success, payload preview completeness or network-wide visibility.'}
 
     def _selection(self):
         packets = sum(key.startswith('p') and key[1:].isdigit() for key in self.supplied)
         flows = sum(key.startswith('f') and key[1:].isdigit() for key in self.supplied)
+        supplied_numbers={int(k[1:]) for k in self.supplied if k.startswith('p') and k[1:].isdigit()}
+        initial=self.initial_packet_numbers
+        retrieved=supplied_numbers-initial
+        omitted=sorted(set(self.packets)-supplied_numbers)
         self.context['context_selection'].update(
+            selection='initial prefix plus read-only inspected original records' if retrieved else 'initial capture-order prefix',
+            initial_packets_included=len(initial), initial_flows_included=len(self.initial_flow_ids),
+            retrieved_packets_included=len(retrieved),
+            omitted_packet_numbers=omitted[:96],omitted_packet_numbers_omitted=max(0,len(omitted)-96),
             packets_included=packets, packets_omitted=len(self.packets) - packets,
             flows_included=flows, flows_omitted=len(self.flows) - flows,
             all_detail_included=packets == len(self.packets) and flows == len(self.flows))
+        self.context['coverage_disclosure'] = self.coverage_disclosure()
 
     def _shorten(self, value):
         if isinstance(value, dict):
@@ -106,8 +133,8 @@ class EvidenceWorkspace:
         query = {'protocol': protocol, 'source': source, 'destination': destination,
                  'destination_port': destination_port}
         identity = hashlib.sha256(encoded(query)).hexdigest()[:16]
-        alias, full_id = 'a' + identity, self.digest + ':a' + identity
-        self.aliases[full_id] = alias
+        full_id = self.digest + ':a' + identity
+        self._aggregate_alias(full_id)
         selected = []
         for p in self.packets.values():
             if p['status'] != 'decoded':
@@ -137,15 +164,32 @@ class EvidenceWorkspace:
                 'rst_count': sum(bool(p['tcp'] and p['tcp']['flags'] & 4) for p in rows),
                 'packet_numbers': refs[:64], 'member_numbers_omitted': max(0, len(refs)-64)})
         times = [Decimal(p['timestamp']) for p in selected]
+        gaps = [b-a for a,b in zip(times,times[1:])]
         members = [p['packet'] for p in selected]
         payloads = [p['payload']['length'] for p in selected]
         flags = Counter(name for p in selected if p['tcp'] for name in p['tcp']['flag_names'])
+        by_hash=defaultdict(list)
+        for p in selected:by_hash[p['frame_sha256']].append(p)
+        hash_groups=[]
+        for digest,rows in by_hash.items():
+            gt=[Decimal(p['timestamp']) for p in rows];gg=[b-a for a,b in zip(gt,gt[1:])]
+            hash_groups.append({'frame_sha256':digest,'member_count':len(rows),
+                'member_numbers':[p['packet'] for p in rows[:96]],'member_numbers_omitted':max(0,len(rows)-96),
+                'arrival_gap_count':len(gg),'arrival_gap_min_seconds':float(min(gg)) if gg else 0,
+                'arrival_gap_max_seconds':float(max(gg)) if gg else 0})
+        hash_groups.sort(key=lambda g:(-g['member_count'],g['member_numbers'][0]))
+        largest=hash_groups[0] if hash_groups else {}
         result = {'id': full_id, 'query': query, 'scope': 'All decoded packets matching these directional filters, not network-wide traffic.',
             'packet_count': len(selected), 'decoded_capture_packets': self.evidence['coverage']['decoded_packets'],
             'excluded_capture_packets': len(self.packets)-self.evidence['coverage']['decoded_packets'],
             'protocol_counts': dict(sorted(Counter(p['protocol'] for p in selected).items())),
             'tcp_flag_counts': dict(sorted(flags.items())),
             'distinct_frame_hash_count': len({p['frame_sha256'] for p in selected}),
+            'frame_hash_groups':hash_groups[:16],'frame_hash_groups_omitted':max(0,len(hash_groups)-16),
+            'largest_identical_frame_group_count':largest.get('member_count',0),
+            'largest_identical_frame_group_gap_count':largest.get('arrival_gap_count',0),
+            'largest_identical_frame_group_gap_min_seconds':largest.get('arrival_gap_min_seconds',0),
+            'largest_identical_frame_group_gap_max_seconds':largest.get('arrival_gap_max_seconds',0),
             'payload_bytes_total': sum(payloads),
             'min_payload_bytes': min(payloads) if payloads else 0,
             'max_payload_bytes': max(payloads) if payloads else 0,
@@ -153,6 +197,10 @@ class EvidenceWorkspace:
             'syn_destination_port_count': len({p['tcp']['dst_port'] for p in selected if p['tcp'] and p['tcp']['flags'] & 0x12 == 0x02}),
             'rst_count': sum(bool(p['tcp'] and p['tcp']['flags'] & 4) for p in selected),
             'duration_seconds': float(max(times)-min(times)) if times else 0,
+            'arrival_gap_order': 'Selected records in original capture order; negative gaps are possible, not sorted or unique sessions.',
+            'arrival_gap_count': len(gaps),
+            'arrival_gap_min_seconds': float(min(gaps)) if gaps else 0,
+            'arrival_gap_max_seconds': float(max(gaps)) if gaps else 0,
             'directional_group_count': len(directions), 'directions': directions[:32],
             'directional_groups_omitted': max(0, len(directions)-32),
             'member_count': len(members), 'member_numbers': members[:96],
@@ -178,11 +226,12 @@ class EvidenceWorkspace:
             result = {'ok': True, 'capture_sha256': self.digest,
                       'records': [self._shorten(row) for row in records], **extra}
             result['measurement_fields'] = {self.aliases[row['id']]: scalar_paths(row) for row in records}
-            if len(encoded(result)) > MAX_TOOL_BYTES:
+            if len(encoded(result)) + len(encoded(self.coverage_disclosure())) + 256 > MAX_TOOL_BYTES:
                 raise ValueError('Result exceeds byte limit; request fewer packets or a narrower filter.')
             for row in records:
                 self._supply(row)
             self._selection()
+            result['coverage_disclosure'] = self.coverage_disclosure()
             entry.update(ok=True, result=result)
             return result
         except (ValueError, KeyError, TypeError):
@@ -219,6 +268,20 @@ class EvidenceWorkspace:
                 raise ValueError('Invalid packet numbers.')
             return [self.packets[n] for n in packet_numbers], {'scope': 'Only these packets.'}
         return self._run('get_packets', {'packet_numbers': packet_numbers}, operation)
+
+    def get_code_reference(self,topic:str='tsv_checker')->dict:
+        """Retrieve reviewed standalone read-only example source, not execute it.
+
+        Args:
+            topic: tsv_checker for the supported eleven-column lab TSV checker, including LF/CRLF, blank lines and optional transport fields.
+        """
+        def operation():
+            from pp_code_reference import code_reference
+            row=code_reference(topic)
+            full_id=self.digest+':a'+hashlib.sha256(encoded(row)).hexdigest()[:16]
+            row['id']=full_id;self._aggregate_alias(full_id);self.aggregates[full_id]=copy.deepcopy(row)
+            return [row],{'authority':'Read-only code reference, no filesystem or network execution. Copy exact code if citing its reviewed provenance.'}
+        return self._run('get_code_reference',{'topic':topic},operation)
 
     def get_flow(self, flow_id: str, offset: int = 0, limit: int = 16) -> dict:
         """Inspect a known short flow ID (f1 etc.), its endpoint direction counts and paginated packet sequence. Endpoint A is sorted, NOT automatically the initiator.
@@ -283,7 +346,7 @@ class EvidenceWorkspace:
                 if not isinstance(address, str) or address and ipaddress.ip_address(address) not in ipaddress.ip_network('10.77.0.0/24'):
                     raise ValueError('Invalid lab address.')
             row = analyse_tcp_exchanges(self.evidence, source, destination, destination_port)
-            self.aliases[row['id']] = row['id'].rsplit(':',1)[1]
+            self._aggregate_alias(row['id'])
             self.aggregates[row['id']] = copy.deepcopy(row)
             return [row], {}
         return self._run('inspect_tcp_exchanges',dict(source=source,destination=destination,destination_port=destination_port),operation)
@@ -340,12 +403,12 @@ class EvidenceWorkspace:
         self.context['previously_inspected_evidence'] = [self._supply(row) for row in records]
         # Drop ordinary prefix detail, not the requested focus, if needed.
         focus_ids = {row['id'] for row in self.context['previously_inspected_evidence']}
-        while len(encoded(self.context)) > MAX_CONTEXT_BYTES and (self.context['flows'] or self.context['packets']):
+        while len(encoded(self.context)) + DISCLOSURE_RESERVE > MAX_CONTEXT_BYTES and (self.context['flows'] or self.context['packets']):
             key = 'flows' if self.context['flows'] else 'packets'
             removed = self.context[key].pop()
             if removed['id'] not in focus_ids:
                 self.supplied.pop(removed['id'], None)
-        if len(encoded(self.context)) > MAX_CONTEXT_BYTES:
+        if len(encoded(self.context)) + DISCLOSURE_RESERVE > MAX_CONTEXT_BYTES:
             raise ValueError('Focused context exceeds byte limit.')
         self._selection()
 
@@ -360,7 +423,11 @@ def validate_tool_arguments(name, raw):
     if not isinstance(raw, str) or len(raw.encode('utf-8')) > 2048:
         raise ValueError('Tool arguments exceed the byte limit.')
     value = strict_json(raw)
-    fields = {'get_lab_status': {},
+    fields = {'get_lab_status': {},'get_code_reference':{'topic':str},
+              'inspect_service':{'destination_port':int},
+              'compare_sources':{'baseline_id':str,'comparison_id':str,'destination_port':int},
+              'inspect_case_records':{'review_id':str,'numbers':list},
+              'probe_lab_service':{},
               'prepare_response_plan': {'operation': str, 'target': str, 'destination': str, 'port': int,
                                         'duration_seconds': int, 'rate_kbit': int},
               'get_packets': {'packet_numbers': list},
@@ -375,6 +442,8 @@ def validate_tool_arguments(name, raw):
         raise ValueError('Tool argument types must match exactly.')
     if name == 'prepare_response_plan' and not {'operation', 'target', 'destination', 'port', 'duration_seconds'} <= set(value):
         raise ValueError('Explicit operation, source, service, port and duration are required.')
+    if name=='compare_sources' and not {'baseline_id','comparison_id'}<=set(value):raise ValueError('Two selected source IDs required.')
+    if name=='inspect_case_records' and ('review_id' not in value or not isinstance(value.get('numbers'),list) or any(type(n)is not int for n in value['numbers'])):raise ValueError('Exact source ID and integer record numbers required.')
     if name == 'get_packets' and (not 1 <= len(value.get('packet_numbers', [])) <= 16
             or any(type(n) is not int for n in value['packet_numbers'])):
         raise ValueError('Packet numbers must be integers, not booleans or strings.')

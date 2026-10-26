@@ -11,8 +11,8 @@ export function Hint({label, children}) {
   return <Tooltip.Root><Tooltip.Trigger asChild>{children}</Tooltip.Trigger><Tooltip.Portal><Tooltip.Content className="hint" sideOffset={7}>{label}<Tooltip.Arrow/></Tooltip.Content></Tooltip.Portal></Tooltip.Root>;
 }
 export function Tooltips({children}) {return <Tooltip.Provider delayDuration={450} skipDelayDuration={180}>{children}</Tooltip.Provider>;}
-export function Modal({title, children, close, wide=false}) {
-  return <Dialog.Root open onOpenChange={open=>!open&&close()}><Dialog.Portal><Dialog.Overlay className="dialog-scrim"/><Dialog.Content className={`modal premium-dialog ${wide?'wide':''}`} aria-describedby={undefined}>
+export function Modal({title, children, close, wide=false,className=''}) {
+  return <Dialog.Root open onOpenChange={open=>!open&&close()}><Dialog.Portal><Dialog.Overlay className="dialog-scrim"/><Dialog.Content className={`modal premium-dialog ${wide?'wide':''} ${className}`} aria-describedby={undefined}>
     <div className="modal-heading"><Dialog.Title asChild><h2>{title}</h2></Dialog.Title><button type="button" className="icon-button" aria-label="Close dialog" onClick={close}><X size={18}/></button></div>{children}
   </Dialog.Content></Dialog.Portal></Dialog.Root>;
 }

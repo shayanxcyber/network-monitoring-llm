@@ -145,7 +145,7 @@ class LegacyAgnoClient:
                 model = CheckedDeepSeek(
                     id=self.config.model, api_key=self.config.api_key,
                     base_url=self.config.base_url, client=provider,
-                    max_tokens=prepared['max_tokens'], temperature=prepared.get('temperature'), max_retries=0, retries=0,
+                    max_tokens=prepared.get('max_tokens'), temperature=prepared.get('temperature'), max_retries=0, retries=0,
                     reasoning_effort=self.config.reasoning_effort or None,
                     use_thinking=self.config.thinking == "enabled", evidence=evidence, context=json.loads(input_text),
                 )
@@ -177,7 +177,7 @@ class LegacyAgnoClient:
             'prompt_sha256': prompt_hash, 'request_sha256': model.request_sha256,
             'elapsed_seconds': round(time.perf_counter() - started, 4), 'attempts': 1,
             'settings': {'thinking': self.config.thinking, 'reasoning_effort': self.config.reasoning_effort,
-                         'max_tokens': prepared['max_tokens'], 'temperature': prepared.get('temperature'),
+                         'max_tokens': prepared.get('max_tokens'), 'temperature': prepared.get('temperature'),
                          'timeout_seconds': self.config.timeout, 'automatic_retries': 0},
         }
         if model.error_code or model.answer is None or output is None or str(output.status.value) != "COMPLETED":

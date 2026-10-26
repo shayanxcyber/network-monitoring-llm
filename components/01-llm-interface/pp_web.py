@@ -24,6 +24,7 @@ from pp_llm import LLMError, MAX_QUESTION, clean_text
 from pp_policy import preview_response, preview_assessment_action
 from pp_assessment import validate_assessment
 from pp_investigation_contract import validate_saved_assessment
+from pp_investigator import MAX_RUN_SECONDS, MAX_MODEL_CALLS
 from pp_context import build_context
 from pp_samples import make_samples
 from pp_sessions import ReviewStore
@@ -34,6 +35,8 @@ from pp_response_client import ResponseClient
 from pp_tcp_relationships import analyse_tcp_exchanges
 from pp_response_operations import CAPABILITIES, catalogue, validate_parameters, proposal_script
 from pp_evidence_views import build_views, record_page
+from pp_case_api import register_cases, snapshot as case_snapshot, same_case_scope
+from pp_capture_api import register_capture
 
 
 class NewReview(BaseModel):
@@ -103,6 +106,7 @@ def create_app(root, data_dir=None, config_loader=None, client_factory=None, tes
     app = FastAPI(title="PacketPilot", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.store = store
     app.state.runs = app_runs
+    register_cases(app,store,responses)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"] + (["testserver"] if test_mode else []))
 
     @app.middleware("http")
@@ -154,6 +158,8 @@ def create_app(root, data_dir=None, config_loader=None, client_factory=None, tes
         evidence = analyse_input(capture, "auto")
         return public_review(store.create(title, capture, provider, evidence))
 
+    register_capture(app,store,responses,create_review,ready)
+
     @app.get("/")
     def index():
         built = root / 'web' / 'react' / 'index.html'
@@ -163,13 +169,16 @@ def create_app(root, data_dir=None, config_loader=None, client_factory=None, tes
     def configuration():
         config = config_loader()
         return {"application": "PacketPilot", "csrf": csrf, "api_ready": ready(), "model": config.model,
-                "thinking": config.thinking, "runtime": "Agno", "actions": "isolated_lab_requires_explicit_approval",
+                "thinking": config.thinking, "reasoning_effort": config.reasoning_effort,
+                "generation_override": config.max_output_tokens,
+                "runtime": "Agno", "actions": "isolated_lab_requires_explicit_approval",
                 "capabilities": catalogue(), "answer_contract": "4.0", "interface": "react-workspace-1.0",
                 "run_events": True,
                 "history": "Last three successful turns and capture-scoped investigation state. Private provider continuity stays in local SQLite, not operator exports. Legacy contract history is separate.",
-                "investigation": {"tools": ["get_packets", "get_flow", "summarize_connections", "inspect_tcp_exchanges", "get_lab_status", "prepare_response_plan"],
-                                  "log_tools": ["get_log_records", "summarize_log_records", "inspect_tcp_exchanges"],
-                                  "max_calls": 6, "max_seconds": 600},
+                "investigation": {"tools": ["get_packets", "get_flow", "summarize_connections", "inspect_tcp_exchanges", "inspect_service", "get_code_reference", "get_lab_status", "probe_lab_service", "prepare_response_plan"],
+                                  "case_tools": ["compare_sources", "inspect_case_records"],
+                                  "log_tools": ["get_log_records", "summarize_log_records", "inspect_tcp_exchanges", "inspect_service", "get_code_reference", "get_lab_status", "probe_lab_service", "prepare_response_plan"],
+                                  "max_calls": MAX_MODEL_CALLS, "max_seconds": MAX_RUN_SECONDS},
                 "samples": ["normal", "port-check"], "max_upload_bytes": MAX_BYTES}
 
     @app.get("/api/reviews")
@@ -246,7 +255,8 @@ def create_app(root, data_dir=None, config_loader=None, client_factory=None, tes
                     client = client_factory(config_loader(), str(review_id))
                     if hasattr(client, 'configure_workspace'):
                         client.configure_workspace({'review_id': str(review_id), 'binding': review['lab_binding'],
-                                                    'inspect': lab_status})
+                                                    'inspect': lab_status,'case':case_snapshot(store,str(review_id)),
+                                                    'probe':lambda:responses.call('diagnostic')})
                 except LLMError:
                     raise ValueError("The API key/settings are not ready. Add the key inside Ubuntu.") from None
             result, _, run_path = run_analysis(
@@ -273,6 +283,7 @@ def create_app(root, data_dir=None, config_loader=None, client_factory=None, tes
     def start_run(review_id: uuid.UUID, body: RunQuestion):
         saved = store.get(str(review_id))
         question = clean_text(body.question, MAX_QUESTION)
+        selected_case = case_snapshot(store,str(review_id))
         path = Path(saved['capture'])
         if input_fingerprint(path)['sha256'] != saved['evidence']['capture']['sha256']:
             raise ValueError('The source changed. Import it again before investigating.')
@@ -281,16 +292,17 @@ def create_app(root, data_dir=None, config_loader=None, client_factory=None, tes
             evidence = saved['evidence']
             allowed = {evidence['capture']['sha256']+':'+key for key in ('capture','overview','coverage')}
             allowed.update(r['id'] for key in ('packets','log_records','flows','facts') for r in evidence.get(key,[]))
-            allowed.update(r['id'] for t in saved['turns'] for r in t['explanation'].get('aggregate_provenance',[]))
+            allowed.update(r['id'] for t in saved['turns'] if same_case_scope(t['explanation'].get('case_scope'),selected_case) for r in t['explanation'].get('aggregate_provenance',[]))
             if selected_reference not in allowed:
-                raise ValueError('Selected context must be a retained reference in this source.')
+                raise ValueError('Selected context is unavailable in the current case scope. Use an original record or ask a new question with the desired source selection.')
         def runner(emit):
             client = None
             if saved['provider'] == 'api':
                 client = client_factory(config_loader(), str(review_id))
                 if hasattr(client, 'configure_workspace'):
                     client.configure_workspace({'review_id': str(review_id), 'binding': saved['lab_binding'], 'inspect': lab_status,
-                                                'selected_reference': selected_reference})
+                                                'selected_reference': selected_reference,'case':selected_case,
+                                                'probe':lambda:responses.call('diagnostic')})
                 if hasattr(client, 'configure_events'):
                     client.configure_events(emit)
             return run_analysis(path, root / 'runs', question, provider=saved['provider'],

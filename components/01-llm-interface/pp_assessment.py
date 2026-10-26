@@ -5,7 +5,7 @@ import re
 import unicodedata
 from pathlib import Path
 from jsonschema import Draft202012Validator
-from pp_context import build_context, reference_registry
+from pp_context import build_context, reference_registry, required_coverage_status
 from pp_policy import preview_assessment_action
 
 SCHEMA_PATH = Path(__file__).with_name('assessment-v2.schema.json')
@@ -25,12 +25,7 @@ def validate_assessment(value, evidence, context=None, *, allow_suggestions=Fals
     for item in [*value['observations'], *value['recommendations']]:
         if not set(item['references']) <= set(registry):
             raise ValueError('Assessment cites absent or cross-capture evidence.')
-    if evidence.get('input_kind') == 'network_log':
-        partial = evidence['coverage']['decoded_records'] != evidence['coverage']['total_records']
-    else:
-        partial = evidence['coverage']['decoded_packets'] != evidence['capture']['packet_count']
-    partial = partial or not context['context_selection']['all_detail_included']
-    if value['coverage']['status'] != ('partial' if partial else 'complete_supported'):
+    if value['coverage']['status'] != required_coverage_status(evidence, context):
         raise ValueError('Coverage disclosure does not match available evidence/context.')
     seen = set()
     for item in value['measurements']:
@@ -43,10 +38,10 @@ def validate_assessment(value, evidence, context=None, *, allow_suggestions=Fals
             for key in item['field'].split('.'):
                 actual = actual[key]
         except (KeyError, TypeError):
-            raise ValueError('Measurement field was not supplied.') from None
+            raise ValueError('Measurement field was not supplied: '+item['reference'].rsplit(':',1)[-1]+'.'+item['field']+'. Omit unnecessary measurements; copy only actual named scalar fields.') from None
         if isinstance(actual, (dict, list)) or type(actual) is not type(item['value']) or actual != item['value']:
             if not (type(actual) in (int, float) and type(item['value']) in (int, float) and actual == item['value']):
-                raise ValueError('Measurement conflicts with the supplied field.')
+                raise ValueError('Measurement conflicts with the supplied field: '+item['reference'].rsplit(':',1)[-1]+'.'+item['field']+'. Copy its actual scalar value and type, or omit this optional measurement.')
     for recommendation in value['recommendations']:
         if not preview_assessment_action(evidence, recommendation)['allowed_preview']:
             raise ValueError('Recommendation is outside the typed preview policy.')
