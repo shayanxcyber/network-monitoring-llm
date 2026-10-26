@@ -7,14 +7,15 @@ from collections import Counter, defaultdict
 from decimal import Decimal
 
 from pp_context import encoded, MAX_CONTEXT_BYTES, HISTORY_RUNS
-from pp_investigation_tools import EvidenceWorkspace, MAX_TOOL_CALLS, validate_tool_arguments, json_dumps, json_tool
+from pp_investigation_tools import EvidenceWorkspace, MAX_TOOL_CALLS, DISCLOSURE_RESERVE, validate_tool_arguments, json_dumps, json_tool
 from pp_logs import LIMITATIONS
 from pp_tcp_relationships import scalar_paths
+from pp_semantics import field_semantics
 
 
 def build_log_context(evidence, question):
     digest = evidence['capture']['sha256']
-    context = {'context_version': 'packetpilot-log-context-1.1', 'input_kind': 'network_log',
+    context = {'context_version': 'packetpilot-log-context-1.5', 'input_kind': 'network_log',
         'question': question, 'user_context': 'User intent and prior answers are unverified context, not log facts.',
         'capture': {'id': digest+':capture', **copy.deepcopy(evidence['capture'])},
         'overview': {'id': digest+':overview', **copy.deepcopy(evidence['overview'])},
@@ -22,6 +23,10 @@ def build_log_context(evidence, question):
         'packets': [], 'flows': [], 'log_records': copy.deepcopy(evidence['log_records'][:96]),
         'limitations': list(LIMITATIONS), 'context_selection': {},
         'history_policy': {'recent_successful_runs': HISTORY_RUNS, 'note': 'Previous answers are interpretation, not new evidence.'}}
+    # Packet-only compatibility zeros are not facts about traffic in this log.
+    # The underlying persisted evidence remains unchanged.
+    context['capture'].pop('packet_count', None)
+    context['coverage'].pop('decoded_packets', None)
     while len(encoded(context)) > MAX_CONTEXT_BYTES and context['log_records']:
         context['log_records'].pop()
     if len(encoded(context)) > MAX_CONTEXT_BYTES:
@@ -39,7 +44,7 @@ class LogWorkspace(EvidenceWorkspace):
     def __init__(self, evidence, question, deadline=None):
         self.evidence = copy.deepcopy(evidence)
         self.digest = evidence['capture']['sha256']
-        self.deadline = deadline or time.monotonic()+600
+        self.deadline = deadline or time.monotonic()+300
         self.trace, self.supplied, self.aggregates = [], {}, {}
         self.rows = {r['line_number']: r for r in self.evidence['log_records']}
         self.packets, self.flows = {}, {}
@@ -47,40 +52,48 @@ class LogWorkspace(EvidenceWorkspace):
         self.aliases.update({r['id']: f'l{n}' for n, r in self.rows.items()})
         self.context = build_log_context(evidence, question)
         self.context['reference_policy'] = 'Cite supplied short log line IDs lN; never pN for log data. The backend resolves every ID to this log hash.'
-        self.context['tool_policy'] = {'version': 'packetpilot-log-tools-1.1', 'max_calls': MAX_TOOL_CALLS,
+        self.context['field_semantics'] = field_semantics('network_log')
+        self.context['tool_policy'] = {'version': 'packetpilot-log-tools-1.2', 'max_calls': MAX_TOOL_CALLS,
                                        'scope': 'Only this saved log; no file paths, commands, live network or action authority.'}
         for key in ('capture', 'overview', 'coverage'):
             self.context[key] = self._supply(self.context[key])
         self.context['log_records'] = [self._supply(r) for r in self.context['log_records']]
         self.context['connections'] = self._supply(self._aggregate('all', '', '', 0))
         self.context['measurement_fields'] = {key:scalar_paths(self.context[key]) for key in ('capture','overview','coverage','connections')}
-        self.context['evidence_capabilities'] = {'packet_sequence_fields':False,
+        self.context['evidence_capabilities'] = {'packet_sequence_fields':False,'application_success_supported':False,
             'tcp_relationships':'inspect_tcp_exchanges supplies candidate reverse tuple/flags/timing relationships, not verified sequence acknowledgements.',
-            'missing_scope':'Only valid exported rows are known; invalid rows, unexported fields and real-network traffic remain unknown.'}
-        while len(encoded(self.context)) > MAX_CONTEXT_BYTES and self.context['log_records']:
+            'missing_scope':'Only valid exported rows are known; invalid rows, unexported fields and real-network traffic remain unknown.',
+            'tsv_validation':{'common_required':['frame.number','frame.time_epoch','frame.len'],
+                'ipv4_required':['ip.src','ip.dst','ip.proto'],
+                'tcp_required':['tcp.srcport','tcp.dstport','tcp.flags'],
+                'udp_required':['udp.srcport','udp.dstport'],
+                'blank_unused_transport_fields_valid':True,
+                'rules':'Exact documented header/order; each physical data line counts, including blank or malformed. Positive bounded frame number/length, finite bounded timestamp, lab IPv4, numeric protocol, hex TCP flags and bounded ports. NON_IPV4 and other protocols are unsupported, not decoded. A small example is not the production parser.'}}
+        while len(encoded(self.context)) + DISCLOSURE_RESERVE > MAX_CONTEXT_BYTES and self.context['log_records']:
             self.supplied.pop(self.context['log_records'].pop()['id'], None)
-        if len(encoded(self.context)) > MAX_CONTEXT_BYTES:
+        if len(encoded(self.context)) + DISCLOSURE_RESERVE > MAX_CONTEXT_BYTES:
             raise ValueError('Log context exceeds its byte limit.')
         self._selection()
 
     @property
     def tool_names(self):
-        return {'get_log_records', 'summarize_log_records', 'inspect_tcp_exchanges'}
+        return {'get_log_records', 'summarize_log_records', 'inspect_tcp_exchanges','get_code_reference'}
 
     @property
     def tools(self):
-        return [json_tool(f) for f in (self.get_log_records, self.summarize_log_records, self.inspect_tcp_exchanges)]
+        return [json_tool(f) for f in (self.get_log_records, self.summarize_log_records, self.inspect_tcp_exchanges,self.get_code_reference)]
 
     def _selection(self):
         count = sum(k.startswith('l') and k[1:].isdigit() for k in self.supplied)
         self.context['context_selection'].update(records_included=count, records_omitted=len(self.rows)-count,
                                                 all_detail_included=count == len(self.rows))
+        self.context['coverage_disclosure'] = self.coverage_disclosure()
 
     def _aggregate(self, protocol, source, destination, destination_port):
         query = dict(protocol=protocol, source=source, destination=destination, destination_port=destination_port)
         alias = 'a'+hashlib.sha256(encoded(query)).hexdigest()[:16]
         identity = self.digest+':'+alias
-        self.aliases[identity] = alias
+        self._aggregate_alias(identity)
         selected = []
         for row in self.rows.values():
             if row['status'] != 'decoded' or protocol != 'all' and row['protocol'] != protocol:
@@ -104,8 +117,13 @@ class LogWorkspace(EvidenceWorkspace):
                 'line_numbers': [r['line_number'] for r in rows[:64]], 'member_numbers_omitted': max(0, len(rows)-64)})
         times = [Decimal(r['timestamp']) for r in selected]
         numbers = [r['line_number'] for r in selected]
+        frames=[r['source_frame_number'] for r in selected]
         result = {'id': identity, 'query': query, 'scope': 'All valid saved log rows matching these directional filters; not raw packets or network-wide activity.',
             'record_count': len(selected), 'decoded_log_records': self.evidence['coverage']['decoded_records'],
+            'source_frame_number_min':min(frames) if frames else 0,
+            'source_frame_number_max':max(frames) if frames else 0,
+            'source_frame_number_distinct_count':len(set(frames)),
+            'source_frame_numbers':frames[:96],'source_frame_numbers_omitted':max(0,len(frames)-96),
             'excluded_log_records': len(self.rows)-self.evidence['coverage']['decoded_records'],
             'protocol_counts': dict(sorted(Counter(r['protocol'] for r in selected).items())),
             'duration_seconds': float(max(times)-min(times)) if times else 0,
@@ -179,10 +197,10 @@ class LogWorkspace(EvidenceWorkspace):
                 continue
         self.context['previously_inspected_evidence'] = [self._supply(r) for r in records]
         focus_ids = {r['id'] for r in self.context['previously_inspected_evidence']}
-        while len(encoded(self.context)) > MAX_CONTEXT_BYTES and self.context['log_records']:
+        while len(encoded(self.context)) + DISCLOSURE_RESERVE > MAX_CONTEXT_BYTES and self.context['log_records']:
             removed = self.context['log_records'].pop()
             if removed['id'] not in focus_ids:
                 self.supplied.pop(removed['id'], None)
-        if len(encoded(self.context)) > MAX_CONTEXT_BYTES:
+        if len(encoded(self.context)) + DISCLOSURE_RESERVE > MAX_CONTEXT_BYTES:
             raise ValueError('Focused log context exceeds its limit.')
         self._selection()

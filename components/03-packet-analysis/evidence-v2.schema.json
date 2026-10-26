@@ -74,6 +74,18 @@
       "type": ["object", "null"], "required": ["src_port", "dst_port", "length", "checksum", "payload_bytes"],
       "properties": {"src_port": {"$ref": "#/$defs/port"}, "dst_port": {"$ref": "#/$defs/port"}, "length": {"type": "integer", "minimum": 8, "maximum": 65535}, "checksum": {"$ref": "#/$defs/port"}, "payload_bytes": {"$ref": "#/$defs/count"}}, "additionalProperties": false
     },
+    "decode_bounds": {
+      "type": "object",
+      "required": ["version", "link_header_bytes", "saved_frame_bytes", "saved_ipv4_bytes", "declared_ipv4_bytes", "ipv4_shortfall_bytes", "saved_transport_prefix_bytes", "snapshot_shortfall_bytes", "tcp_tuple_identified", "tcp_flags_identified", "scope"],
+      "properties": {
+        "version": {"const": "packetpilot-decode-bounds-1.0"},
+        "link_header_bytes": {"$ref": "#/$defs/count"}, "saved_frame_bytes": {"$ref": "#/$defs/count"},
+        "saved_ipv4_bytes": {"$ref": "#/$defs/count"}, "declared_ipv4_bytes": {"$ref": "#/$defs/count"},
+        "ipv4_shortfall_bytes": {"$ref": "#/$defs/count"}, "saved_transport_prefix_bytes": {"$ref": "#/$defs/count"},
+        "snapshot_shortfall_bytes": {"$ref": "#/$defs/count"},
+        "tcp_tuple_identified": {"const": false}, "tcp_flags_identified": {"const": false}, "scope": {"type": "string"}
+      }, "additionalProperties": false
+    },
     "packet": {
       "type": "object", "required": ["id", "packet", "timestamp", "time", "file_offset", "captured_bytes", "wire_bytes", "frame_sha256", "status", "issues", "protocol", "ethernet", "ipv4", "tcp", "udp", "flow_id"],
       "properties": {
@@ -84,6 +96,8 @@
         "issues": {"type": "array", "items": {"type": "string"}}, "protocol": {"enum": ["Ethernet", "ARP", "IPv6", "VLAN", "IPv4", "TCP", "UDP"]},
         "ethernet": {"$ref": "#/$defs/ethernet"}, "ipv4": {"$ref": "#/$defs/ipv4"}, "tcp": {"$ref": "#/$defs/tcp"}, "udp": {"$ref": "#/$defs/udp"},
         "flow_id": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}:f[0-9a-f]{16}$"},
+        "decode_bounds": {"$ref": "#/$defs/decode_bounds"},
+        "application": {"oneOf": [{"type":"null"},{"type":"object","required":["protocol","scope"],"properties":{"protocol":{"enum":["DNS","HTTP"]},"scope":{"type":"string","maxLength":300},"transaction_id":{"type":"integer","minimum":0,"maximum":65535},"response":{"type":"boolean"},"response_code":{"type":"integer","minimum":0,"maximum":15},"query":{"type":"string","maxLength":253},"query_type":{"type":"integer","minimum":0,"maximum":65535},"answer_count":{"type":"integer","minimum":0,"maximum":65535},"message":{"enum":["request","response"]},"header_complete":{"type":"boolean"},"method":{"type":"string","maxLength":10},"path":{"type":"string","maxLength":300},"version":{"enum":["1.0","1.1"]},"status_code":{"type":"integer","minimum":100,"maximum":599}},"additionalProperties":false}]},
         "payload": {"type": "object", "required": ["length", "preview_hex", "preview_limit_bytes", "preview_truncated"], "properties": {"length": {"$ref": "#/$defs/count"}, "preview_hex": {"type": "string", "maxLength": 128, "pattern": "^([0-9a-f]{2})*$"}, "preview_limit_bytes": {"const": 64}, "preview_truncated": {"type": "boolean"}}, "additionalProperties": false}
       }, "additionalProperties": false
     },

@@ -267,7 +267,7 @@ class LogAgnoTests(unittest.TestCase):
                 client = AgnoClient(config, Path(folder)/'private.sqlite3', str(uuid.uuid4()), workspace_upgrade=False)
                 result = client.explain(evidence, 'Inspect exported rows.')
                 self.assertEqual(len(received), 2)
-                self.assertEqual({t['function']['name'] for t in received[0]['tools']}, {'get_log_records', 'summarize_log_records', 'inspect_tcp_exchanges'})
+                self.assertEqual({t['function']['name'] for t in received[0]['tools']}, {'get_log_records', 'summarize_log_records', 'inspect_tcp_exchanges','get_code_reference'})
                 self.assertIn('saved field-log investigation', received[0]['messages'][0]['content'])
                 self.assertTrue(result['tool_trace'][0]['ok'])
                 self.assertEqual(result['answer']['observations'][0]['references'], [evidence['capture']['sha256']+':l2'])

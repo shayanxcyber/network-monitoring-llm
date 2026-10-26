@@ -5,7 +5,7 @@ from decimal import Decimal
 import hashlib
 from pp_context import encoded
 
-VERSION = 'packetpilot-tcp-relationships-1.0'
+VERSION = 'packetpilot-tcp-relationships-1.2'
 MAX_EXCHANGES = 32
 
 
@@ -89,7 +89,13 @@ def analyse_tcp_exchanges(evidence, source='', destination='', destination_port=
                     acks = [r for r in acks if r['tcp']['sequence'] == (syn['tcp']['sequence']+1) % (2**32)
                             and r['tcp']['acknowledgement'] == (reply['tcp']['sequence']+1) % (2**32)]
                 final_ack = acks[0] if acks else None
-                ambiguous = ambiguous or len(acks) > 1
+                # Later ACKs (including the first data segment) can legitimately
+                # acknowledge the same SYN-ACK. They do not create competing
+                # handshakes: retain the earliest observed completion. Equal-time
+                # candidates still cannot be ordered from timestamps alone.
+                ambiguous = ambiguous or bool(final_ack and (
+                    tm(final_ack) == tm(reply)
+                    or sum(tm(r) == tm(final_ack) for r in acks) > 1))
             reset = bool(reply['tcp']['flags'] & 4)
             totals['syns_with_candidate_reset'] += reset
             totals['syns_with_candidate_syn_ack'] += reply['tcp']['flags'] & 0x17 == 0x12
@@ -101,12 +107,16 @@ def analyse_tcp_exchanges(evidence, source='', destination='', destination_port=
         totals['ambiguous_syn_records'] += ambiguous
         support = [syn] + ([reply] if reply else []) + ([final_ack] if final_ack else [])
         exchanges.append({'source':src,'destination':dst,'source_port':sport,'destination_port':dport,
+            'initiator':{'address':src,'port':sport}, 'responder_service':{'address':dst,'port':dport},
+            'reply_direction':{'source':dst,'source_port':dport,'destination':src,'destination_port':sport} if reply else None,
+            'final_ack_direction':{'source':src,'source_port':sport,'destination':dst,'destination_port':dport} if final_ack else None,
             'syn_reference':syn['id'],'candidate_reply_reference':reply['id'] if reply else None,
             'candidate_reply_flags':reply['tcp']['flags'] if reply else None,
             'final_ack_reference':final_ack['id'] if final_ack else None,
             'supporting_references':[r['id'] for r in support],
             'reply_delay_seconds':float(tm(reply)-tm(syn)) if reply else None,
             'final_ack_delay_seconds':float(tm(final_ack)-tm(reply)) if final_ack else None,
+            'handshake_elapsed_seconds':float(tm(final_ack)-tm(syn)) if final_ack else None,
             'sequence_fields_available':not is_log,'reply_acknowledgement_matches_syn':acknowledgement_matched if sequence_checked else None,
             'ambiguous':ambiguous,'matching_basis':'reverse tuple/timestamps/flags only' if is_log else 'reverse tuple/timestamps/flags and supplied sequence fields'})
     query = {'analysis':'tcp_exchanges','source':source,'destination':destination,'destination_port':destination_port}
