@@ -4,7 +4,7 @@ from decimal import Decimal
 import hashlib
 import re
 
-VERSION = 'service-evidence-1.0'
+VERSION = 'service-evidence-1.6'
 
 def application_fields(payload, protocol, source_port, destination_port):
     """Inspect a complete saved segment/datagram, never reassemble or decrypt."""
@@ -47,6 +47,11 @@ def service_facts(evidence, destination_port=0):
     total_bytes = sum(v for v in sizes if type(v) is int)
     tcp = [r for r in rows if r.get('tcp')]
     apps = [r for r in rows if r.get('application')]
+    requests=[r for r in apps if r['application'].get('message')=='request']
+    signatures=Counter((r['application']['method'],r['application']['path']) for r in requests)
+    request_signatures=[dict(method=method,path=path,count=count,
+        references=[r['id'] for r in requests if (r['application']['method'],r['application']['path'])==(method,path)][:32])
+        for (method,path),count in sorted(signatures.items())[:24]]
     exchanges, pending = [], {}
     for r in sorted(apps, key=lambda r: (Decimal(r['timestamp']), r.get('packet', 0))):
         a, ip, t = r['application'], r['ipv4'], r.get('tcp') or r.get('udp')
@@ -60,6 +65,9 @@ def service_facts(evidence, destination_port=0):
             # HTTP association is only an observed tuple/time candidate; no sequence/reassembly proof.
             exchanges.append(dict(protocol=a['protocol'], request=request['id'], response=r['id'],
                 delay_seconds=float(Decimal(r['timestamp'])-Decimal(request['timestamp'])),
+                interval_start='Observed request segment/datagram timestamp at the unspecified capture point',
+                interval_end='Observed candidate response segment/datagram timestamp at the unspecified capture point',
+                included_effects='May include forward path, queueing/processing and return path; endpoints alone do not localise a cause.',
                 status_code=a.get('status_code'), response_code=a.get('response_code'),
                 association='Candidate pair by reversed tuple, order and no other pending visible request.'))
     delays = [x['delay_seconds'] for x in exchanges]
@@ -76,11 +84,21 @@ def service_facts(evidence, destination_port=0):
         syn_records=sum(r['tcp']['flags']&0x12==2 for r in tcp),
         syn_ack_records=sum(r['tcp']['flags']&0x12==0x12 for r in tcp),
         reset_records=sum(bool(r['tcp']['flags']&4) for r in tcp),
+        fin_records=sum(bool(r['tcp']['flags']&1) for r in tcp),
         directional_counts=dict(Counter(r['ipv4']['src']+' -> '+r['ipv4']['dst'] for r in rows)),
         application_available=bool(apps), visible_http_requests=sum(r['application'].get('message')=='request' for r in apps),
+        visible_http_request_signatures=request_signatures,
+        visible_http_request_profile_sha256=hashlib.sha256(repr(sorted((method,path,count) for (method,path),count in signatures.items())).encode()).hexdigest(),
+        visible_http_request_signature_count=len(signatures),
+        visible_http_request_signatures_omitted=max(0,len(signatures)-24),
+        only_http_request_method=next(iter(signatures))[0] if len(signatures)==1 else None,
+        only_http_request_path=next(iter(signatures))[1] if len(signatures)==1 else None,
         visible_http_responses=sum(r['application'].get('message')=='response' for r in apps),
+        visible_http_response_status_counts=dict(Counter('status_'+str(r['application']['status_code']) for r in apps if r['application'].get('message')=='response')),
         visible_dns_datagrams=sum(r['application']['protocol']=='DNS' for r in apps),
         candidate_pairs=len(exchanges), mean_candidate_reply_seconds=sum(delays)/len(delays) if delays else None,
+        timing_interpretation='Request-observation to candidate-response-observation, not pure server or return-path time. Capture point is not established by these records.',
+        udp_receipt_scope='A captured UDP response is addressed to a peer; without a known receive vantage or separate receipt evidence it does not prove peer reception.',
         candidate_exchanges=exchanges[:32], candidate_exchanges_omitted=max(0,len(exchanges)-32),
         records_fingerprint=fingerprint, references=[r['id'] for r in rows[:96]], references_omitted=max(0,len(rows)-96),
         limits=['Counts describe selected decoded records, not unique attempts or whole-network activity.',
@@ -97,10 +115,15 @@ def compare_service(left, right, destination_port=0):
     elif a['duration_seconds']!=b['duration_seconds']:reasons.append('Observed spans differ; raw counts do not represent equal collection exposure. Rates use each source\'s own first-to-last span.')
     if a['byte_unit']!=b['byte_unit']: reasons.append('Captured and reported frame-byte units differ; byte-rate delta is unavailable.')
     if a['excluded_records'] or b['excluded_records']: reasons.append('Excluded source records limit the comparison.')
+    # Compare the full computed distributions, not only their bounded display.
+    workload_changed=(a['visible_http_request_profile_sha256']!=b['visible_http_request_profile_sha256']) if a['visible_http_requests'] and b['visible_http_requests'] else None
+    if workload_changed: reasons.append('Visible HTTP method/path/count distributions differ. Equal request counts do not establish an identical workload or isolate the cause of a timing delta.')
     if any(x['duration_seconds'] is not None and x['duration_seconds']<1 for x in (a,b)): reasons.append('At least one observed window is shorter than one second; rates are descriptive, not a representative workload baseline.')
-    keys=('record_count','frame_bytes','syn_records','syn_ack_records','reset_records','visible_http_requests','visible_http_responses','visible_dns_datagrams','candidate_pairs')
+    keys=('record_count','frame_bytes','syn_records','syn_ack_records','reset_records','fin_records','visible_http_requests','visible_http_responses','visible_dns_datagrams','candidate_pairs')
     delta={key:b[key]-a[key] for key in keys}
     for key in ('duration_seconds','records_per_second','frame_bytes_per_second','mean_candidate_reply_seconds'):
         delta[key]=b[key]-a[key] if a[key] is not None and b[key] is not None and (key!='frame_bytes_per_second' or a['byte_unit']==b['byte_unit']) else None
-    return dict(version=VERSION,baseline=a,comparison=b,delta=delta,qualification='limited' if reasons else 'descriptive',
+    reasons.append('Equality of a reported count, byte total or HTTP method/path profile covers that metric only. This comparison does not compare every endpoint, packet field or application byte and cannot establish that timing is the only change.')
+    return dict(version=VERSION,baseline=a,comparison=b,delta=delta,visible_http_request_workload_changed=workload_changed,
+        comparison_scope='Named summary metrics and bounded decoded service observations only, not all-field or whole-stream equivalence.',qualification='limited' if reasons else 'descriptive',
         qualifications=reasons,policy='Difference between selected retained observations; no causal, maliciousness or authorisation verdict. Capture locations, filters and workloads must be comparable.')

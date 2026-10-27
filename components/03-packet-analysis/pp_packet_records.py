@@ -112,6 +112,14 @@ def _decode_frame(frame, capture_hash):
         row["issues"].append("invalid_ipv4_header")
         return row
     if total > len(raw) - 14:
+        row['decode_bounds'] = {'version':'packetpilot-decode-bounds-1.0',
+            'link_header_bytes':14,'saved_frame_bytes':len(raw),
+            'saved_ipv4_bytes':len(raw)-14,'declared_ipv4_bytes':total,
+            'ipv4_shortfall_bytes':total-(len(raw)-14),
+            'saved_transport_prefix_bytes':max(0,len(raw)-14-header),
+            'snapshot_shortfall_bytes':max(0,frame['wire_bytes']-len(raw)),
+            'tcp_tuple_identified':False,'tcp_flags_identified':False,
+            'scope':'Length inconsistency, not proof of snaplen cause or a service reply; this parser exposes no validated transport.'}
         row["status"] = "truncated" if truncated else "malformed"
         row["issues"].append("ipv4_length_exceeds_captured_bytes")
         return row
@@ -152,6 +160,9 @@ def _decode_frame(frame, capture_hash):
         return row
     row["payload"] = {"length": payload_length, "preview_hex": raw[payload_start:payload_start + min(64, payload_length)].hex(),
                       "preview_limit_bytes": 64, "preview_truncated": payload_length > 64}
+    from pp_service_evidence import application_fields
+    row['application'] = application_fields(raw[payload_start:payload_start+payload_length],row['protocol'],
+        (row['tcp'] or row['udp'])['src_port'],(row['tcp'] or row['udp'])['dst_port'])
     row["status"] = "truncated" if truncated else "decoded"
     return row
 

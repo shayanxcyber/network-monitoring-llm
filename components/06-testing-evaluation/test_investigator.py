@@ -157,7 +157,7 @@ class WorkspaceTests(unittest.TestCase):
         answer['measurements'][0]['value'] = 5
         with self.assertRaises(ValueError):
             validate_final(json.dumps(answer), self.workspace)
-        full = self.workspace.aggregates[self.workspace.digest+':'+aggregate['id']]
+        full = self.workspace.aggregates[self.workspace.supplied[aggregate['id']]['id']]
         self.assertEqual(full['complete_member_numbers'], [1, 3, 5, 7])
 
     def test_focus_rehydrates_previously_retrieved_tail_packets(self):
@@ -234,7 +234,7 @@ class InvestigatorProtocolTests(unittest.TestCase):
                     answer['observations']=[{'text':'The decoded SYN records contact one destination service.', 'references':[aggregate['id']]}]
                     answer['measurements']=[{'reference':aggregate['id'],'field':'syn_destination_port_count','value':aggregate['syn_destination_port_count']}]
                     message['content']=json.dumps(answer)
-                if cls.mode in ('tools', 'unknown_tool', 'loop', 'parallel','exchanges') and (not have_result or cls.mode == 'loop'):
+                if cls.mode in ('tools', 'unknown_tool', 'loop', 'parallel','exchanges', 'high_usage_tools') and (not have_result or cls.mode == 'loop'):
                     name = 'run_shell' if cls.mode == 'unknown_tool' else ('inspect_tcp_exchanges' if cls.mode=='exchanges' else 'get_packets')
                     call = {'id': 'call-'+str(len(cls.received)), 'type': 'function',
                             'function': {'name': name, 'arguments': json.dumps({} if cls.mode=='exchanges' else {'packet_numbers': [1, 2]})}}
@@ -251,6 +251,10 @@ class InvestigatorProtocolTests(unittest.TestCase):
                     'model': 'protocol-stub', 'choices': [{'index': 0, 'finish_reason': reason, 'message': message}],
                     'usage': {'prompt_tokens': 20, 'completion_tokens': 30, 'total_tokens': 50,
                               'completion_tokens_details': {'reasoning_tokens': 12}}}
+                if cls.mode == 'high_usage_tools':
+                    response['usage'] = {'prompt_tokens': 200000, 'completion_tokens': 80000,
+                                         'total_tokens': 280000,
+                                         'completion_tokens_details': {'reasoning_tokens': 79000}}
                 status = 200
                 if cls.mode in ('auth', 'rate_limit'):
                     status, response = (401 if cls.mode == 'auth' else 429), {'error': {'message': KEY}}
@@ -297,9 +301,11 @@ class InvestigatorProtocolTests(unittest.TestCase):
         request = self.received[0]
         system = request['messages'][0]['content']
         self.assertIn('PacketPilot investigation policy 3.3', system)
-        self.assertIn('Reviewed investigation guidance 1.2', system)
+        self.assertIn('Reviewed investigation guidance 1.17', system)
+        self.assertIn('handshake_elapsed_seconds for a single selected exchange', system)
+        self.assertIn('Literal source byte-offset numbers are allowed ONLY in measurements', system)
         self.assertIn('schema_version', system)
-        self.assertEqual({t['function']['name'] for t in request['tools']}, {'get_packets', 'get_flow', 'summarize_connections', 'inspect_tcp_exchanges'})
+        self.assertEqual({t['function']['name'] for t in request['tools']}, {'get_packets', 'get_flow', 'summarize_connections', 'inspect_tcp_exchanges','get_code_reference'})
         self.assertEqual(request['thinking'], {'type': 'enabled'})
         self.assertEqual(request['reasoning_effort'], 'max')
         self.assertEqual(request['response_format'], {'type': 'json_object'})
@@ -319,6 +325,29 @@ class InvestigatorProtocolTests(unittest.TestCase):
         self.assertTrue(any(m.get('reasoning_content') == PRIVATE for m in second['messages']))
         self.assertTrue(any(m['role'] == 'tool' and 'records' in m['content'] for m in second['messages']))
         self.assertNotIn(PRIVATE, json.dumps(result))
+
+    def test_thinking_low_high_max_serialize_without_token_override(self):
+        for effort in ('low', 'high', 'max'):
+            with self.subTest(effort=effort):
+                self.received.clear()
+                config = replace(self.config, reasoning_effort=effort, max_output_tokens=None)
+                result = AgnoClient(config, self.database, str(uuid.uuid4()), workspace_upgrade=False).explain(self.evidence, 'Inspect.')
+                self.assertEqual(self.received[0]['thinking'], {'type':'enabled'})
+                self.assertEqual(self.received[0]['reasoning_effort'], effort)
+                self.assertNotIn('max_tokens', self.received[0])
+                self.assertIsNone(result['settings']['max_run_completion_tokens'])
+                self.assertIsNone(result['settings']['max_run_total_tokens'])
+                self.assertEqual(result['settings']['max_run_seconds'], 300)
+                self.assertGreaterEqual(result['timings']['provider_wall_seconds'], 0)
+
+    def test_provider_usage_accounted_without_application_token_quota(self):
+        type(self).mode = 'high_usage_tools'
+        config = replace(self.config, max_output_tokens=None)
+        result = AgnoClient(config, self.database, str(uuid.uuid4()), workspace_upgrade=False).explain(self.evidence, 'Inspect.')
+        self.assertEqual(result['attempts'], 2)
+        self.assertEqual(result['usage']['completion_tokens'], 160000)
+        self.assertEqual(result['usage']['total_tokens'], 560000)
+        self.assertNotIn('max_tokens', self.received[-1])
 
     def test_parallel_tools_and_tool_budget(self):
         type(self).mode = 'parallel'
