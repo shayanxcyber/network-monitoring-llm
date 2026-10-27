@@ -11,10 +11,10 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 from pp_context import build_context, encoded, MAX_CONTEXT_BYTES, required_coverage_status
-from pp_tcp_relationships import analyse_tcp_exchanges, scalar_paths
+from pp_tcp_relationships import analyse_tcp_exchanges, scalar_paths, tcp_flag_facts
 from pp_semantics import field_semantics
 
-TOOL_VERSION = 'packetpilot-evidence-tools-3.6'
+TOOL_VERSION = 'packetpilot-evidence-tools-3.8'
 MAX_TOOL_CALLS = 8
 MAX_TOOL_BYTES = 48_000
 DISCLOSURE_RESERVE = 1024
@@ -112,6 +112,14 @@ class EvidenceWorkspace:
             flows_included=flows, flows_omitted=len(self.flows) - flows,
             all_detail_included=packets == len(self.packets) and flows == len(self.flows))
         self.context['coverage_disclosure'] = self.coverage_disclosure()
+        self.context['view_reference_policy'] = self.view_reference_catalog()
+
+    def view_reference_catalog(self):
+        """A rendering selector is not the unrestricted evidence-citation set."""
+        raw = {r['id'] for key in ('packets','log_records','flows') for r in self.evidence.get(key,[])}
+        return {'allowed_short_ids': sorted(k for k,r in self.supplied.items() if r['id'] in raw),
+                'aggregate_ids_allowed': False,
+                'empty_references': 'Use [] for the entire primary source; comparison data is computed by separate case controls.'}
 
     def _shorten(self, value):
         if isinstance(value, dict):
@@ -184,6 +192,7 @@ class EvidenceWorkspace:
             'excluded_capture_packets': len(self.packets)-self.evidence['coverage']['decoded_packets'],
             'protocol_counts': dict(sorted(Counter(p['protocol'] for p in selected).items())),
             'tcp_flag_counts': dict(sorted(flags.items())),
+            'tcp_segments': tcp_flag_facts(selected),
             'distinct_frame_hash_count': len({p['frame_sha256'] for p in selected}),
             'frame_hash_groups':hash_groups[:16],'frame_hash_groups_omitted':max(0,len(hash_groups)-16),
             'largest_identical_frame_group_count':largest.get('member_count',0),
@@ -332,7 +341,7 @@ class EvidenceWorkspace:
         return context
 
     def inspect_tcp_exchanges(self, source: str = '', destination: str = '', destination_port: int = 0) -> dict:
-        """Check SYN service breadth and candidate replies/ACKs in the selected input. Returns supporting refs and exact scope; logs lack sequence numbers. No threat verdict.
+        """Inspect SYN/reply setup AND TCP segment flags/payload ACK direction. segment_facts distinguishes ACK-bearing, flag-only and empty ACK counts, and gives bounded exact ACK candidates for data bytes, even without SYN. Logs lack sequence/payload fields. No threat verdict.
 
         Args:
             source: Optional initiating source in 10.77.0.0/24; empty means any.

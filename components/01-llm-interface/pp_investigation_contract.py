@@ -141,18 +141,22 @@ def validate_final(raw, workspace, *, live=False):
         check(validate_advisory_fields,value)
     for row in [*value['observations'], *value['recommendations'], *value.get('code_suggestions', [])]:
         row['references'] = [_resolve(ref, workspace) for ref in row['references']]
-        for fact in row.get('support',[]):fact['reference']=_resolve(fact['reference'],workspace)
+        for fact in row.get('support',[]):
+            fact['reference']=_resolve(fact['reference'],workspace)
+            fact['value']=canonical_scalar_value(fact['reference'],fact['field'],fact['value'],workspace)
     for row in value['measurements']:
         row['reference'] = _resolve(row['reference'], workspace)
+        row['value']=canonical_scalar_value(row['reference'],row['field'],row['value'],workspace)
     for view in value.get('views', []):
         view['references'] = [_resolve(ref, workspace) for ref in view['references']]
     if value['schema_version'] == '4.0':
         context=workspace.validation_context()
         check(validate_workspace_domain,value,workspace.evidence,context)
         if live and value.get('kind')=='investigation':
-            from pp_claim_checks import validate_grounding,validate_claim_language,validate_code_examples
+            from pp_claim_checks import validate_grounding,validate_claim_language,validate_code_examples,validate_comparison_scope
             check(validate_grounding,value,context,required=True)
             check(validate_claim_language,value,workspace.evidence)
+            check(validate_comparison_scope,value,context)
             check(validate_code_examples,value,context)
         if errors:raise ValueError('Live validation issues: '+'; '.join(errors[:6]))
         return value, original
@@ -168,6 +172,25 @@ def validate_live_final(raw,workspace):
     return validate_final(raw,workspace,live=True)
 
 
+def canonical_scalar_value(reference,field,value,workspace):
+    """Restore an identity scalar shortened by the model-facing wire view.
+
+    Only the exact value of this supplied record's actual field can resolve.
+    This does not supply the referenced identity's detail,add a citation,coerce
+    ordinary text/numbers or change the retained original model draft.
+    """
+    record=workspace.supplied.get(reference)
+    if record is None:
+        record=next((r for r in workspace.supplied.values() if r['id']==reference),None)
+    actual=record
+    try:
+        for key in field.split('.'):actual=actual[key]
+    except (KeyError,TypeError):return value
+    if type(value) is str and type(actual) is str and getattr(workspace,'aliases',{}).get(actual)==value:
+        return actual
+    return value
+
+
 def validate_source_offset_prose(value):
     """Route literal byte-offset claims to checked scalar measurements.
 
@@ -181,9 +204,13 @@ def validate_source_offset_prose(value):
     texts += [r['text'] for r in value.get('observations', [])]
     texts += [r['rationale'] for r in value.get('recommendations', [])]
     texts += (value.get('coverage') or {}).get('limitations', [])
-    pattern = re.compile(r'\b(?:(?:source|file|byte)[\s_-]*)?offsets?\s*(?:(?:[:=]|are|is|of|at|were)\s*)?\d', re.I)
-    if any(isinstance(text, str) and pattern.search(text) for text in texts):
-        raise ValueError('Literal source byte offsets belong only in measurements with the exact original reference and byte_offset/file_offset field; omit numeric offsets from prose and cite original line/packet identities instead.')
+    pattern = re.compile(r'\b(?:(source|file|byte)[\s_-]*)?offsets?\s*(?:(?:[:=]|are|is|of|at|were)\s*)?([0-9]+(?:\.[0-9]+)?)', re.I)
+    for text in texts:
+        if not isinstance(text,str):continue
+        for match in pattern.finditer(text):
+            temporal=re.match(r'\s*(?:seconds?|milliseconds?|microseconds?|ms|us|s)\b',text[match.end():],re.I)
+            if temporal and (match[1] or '').lower() not in ('file','byte'):continue
+            raise ValueError('Literal source byte offsets belong only in measurements with the exact original reference and byte_offset/file_offset field; omit numeric byte offsets from prose and cite original line/packet identities instead. Explicit temporal offsets use time units and remain allowed.')
 
 
 def validate_advisory_fields(value):

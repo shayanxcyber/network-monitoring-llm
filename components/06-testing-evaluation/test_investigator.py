@@ -301,7 +301,8 @@ class InvestigatorProtocolTests(unittest.TestCase):
         request = self.received[0]
         system = request['messages'][0]['content']
         self.assertIn('PacketPilot investigation policy 3.3', system)
-        self.assertIn('Reviewed investigation guidance 1.16', system)
+        self.assertIn('Reviewed investigation guidance 1.17', system)
+        self.assertIn('handshake_elapsed_seconds for a single selected exchange', system)
         self.assertIn('Literal source byte-offset numbers are allowed ONLY in measurements', system)
         self.assertIn('schema_version', system)
         self.assertEqual({t['function']['name'] for t in request['tools']}, {'get_packets', 'get_flow', 'summarize_connections', 'inspect_tcp_exchanges','get_code_reference'})

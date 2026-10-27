@@ -9,7 +9,7 @@ from decimal import Decimal
 from pp_context import encoded, MAX_CONTEXT_BYTES, HISTORY_RUNS
 from pp_investigation_tools import EvidenceWorkspace, MAX_TOOL_CALLS, DISCLOSURE_RESERVE, validate_tool_arguments, json_dumps, json_tool
 from pp_logs import LIMITATIONS
-from pp_tcp_relationships import scalar_paths
+from pp_tcp_relationships import scalar_paths, tcp_flag_facts
 from pp_semantics import field_semantics
 
 
@@ -53,7 +53,7 @@ class LogWorkspace(EvidenceWorkspace):
         self.context = build_log_context(evidence, question)
         self.context['reference_policy'] = 'Cite supplied short log line IDs lN; never pN for log data. The backend resolves every ID to this log hash.'
         self.context['field_semantics'] = field_semantics('network_log')
-        self.context['tool_policy'] = {'version': 'packetpilot-log-tools-1.2', 'max_calls': MAX_TOOL_CALLS,
+        self.context['tool_policy'] = {'version': 'packetpilot-log-tools-1.3', 'max_calls': MAX_TOOL_CALLS,
                                        'scope': 'Only this saved log; no file paths, commands, live network or action authority.'}
         for key in ('capture', 'overview', 'coverage'):
             self.context[key] = self._supply(self.context[key])
@@ -88,6 +88,7 @@ class LogWorkspace(EvidenceWorkspace):
         self.context['context_selection'].update(records_included=count, records_omitted=len(self.rows)-count,
                                                 all_detail_included=count == len(self.rows))
         self.context['coverage_disclosure'] = self.coverage_disclosure()
+        self.context['view_reference_policy'] = self.view_reference_catalog()
 
     def _aggregate(self, protocol, source, destination, destination_port):
         query = dict(protocol=protocol, source=source, destination=destination, destination_port=destination_port)
@@ -126,6 +127,7 @@ class LogWorkspace(EvidenceWorkspace):
             'source_frame_numbers':frames[:96],'source_frame_numbers_omitted':max(0,len(frames)-96),
             'excluded_log_records': len(self.rows)-self.evidence['coverage']['decoded_records'],
             'protocol_counts': dict(sorted(Counter(r['protocol'] for r in selected).items())),
+            'tcp_segments': tcp_flag_facts(selected, True),
             'duration_seconds': float(max(times)-min(times)) if times else 0,
             'directional_group_count': len(directions), 'directions': directions[:32],
             'directional_groups_omitted': max(0, len(directions)-32),

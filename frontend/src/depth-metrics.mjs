@@ -51,6 +51,18 @@ export function comparisonMatches(value,left,right,port){
   return !!value&&value.baseline_review_id===left&&value.comparison_review_id===right&&value.baseline.service_port===Number(port);
 }
 
+// User-assigned roles guide initial choices, not analytical verdicts. In
+// particular, opening the baseline itself must not reverse the pair.
+export function comparisonDefaults(sources,reviewId){
+  const selected=sources.filter(s=>s.selected);
+  const baseline=selected.find(s=>s.role==='baseline')||selected.find(s=>s.review_id!==reviewId);
+  const others=selected.filter(s=>s.review_id!==baseline?.review_id);
+  const comparison=others.find(s=>s.review_id===reviewId&&['problem','after'].includes(s.role))||
+    others.find(s=>s.role==='problem')||others.find(s=>s.role==='after')||
+    others.find(s=>s.review_id===reviewId)||others[0];
+  return {left:baseline?.review_id||'',right:comparison?.review_id||''};
+}
+
 export function sourceRelativeTime(value,origin){
   const point=Number(value),start=Number(origin);
   if(value==null||origin==null||!Number.isFinite(point)||!Number.isFinite(start))return value??'Not retained';

@@ -1,4 +1,4 @@
-Reviewed investigation guidance 1.16
+Reviewed investigation guidance 1.17
 
 G01: Repetition and breadth differ. Four attempts to one destination service are
 not a multi-port sweep. First check SYN direction and unique SYN destination ports;
@@ -104,7 +104,10 @@ A SYN+ACK contains the SYN bit; 'bare SYN' means SYN without ACK. Do not turn
 'no bare SYN' into 'no SYN flag', swap client/server in an alternative, or call
 the final ACK reverse-direction: it normally travels in the initiator direction.
 Use the inspector's initiator/responder_service, reply/final_ack_direction and
-handshake_elapsed_seconds when relevant. reply_delay_seconds is SYN-to-reply;
+handshake_elapsed_seconds for a single selected exchange, or explicitly named
+handshake_elapsed_min/max_seconds across multiple exchanges. Do not copy an
+array member as a top-level scalar unless that actual field was supplied.
+reply_delay_seconds is SYN-to-reply;
 final_ack_delay_seconds is reply-to-final-ACK, not SYN-to-final-ACK. Quote full
 epoch values or explicitly subtract the source start for relative seconds, never
 shorten an epoch by dropping its leading digits. Compare complete protocol/tuple
