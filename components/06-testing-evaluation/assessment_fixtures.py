@@ -1,7 +1,9 @@
 """Protocol-stub responses, never presented as live inference."""
 def stub_answer(context):
     reference = context['overview']['id']
-    partial = (context['coverage']['decoded_packets'] != context['capture']['packet_count']
+    counts = context['coverage']
+    partial = ((counts['decoded_records'] != counts['total_records'] if 'total_records' in counts
+                else counts['decoded_packets'] != context['capture']['packet_count'])
                or not context['context_selection']['all_detail_included'])
     return {
         'schema_version': '2.0', 'capture_sha256': context['capture']['sha256'],

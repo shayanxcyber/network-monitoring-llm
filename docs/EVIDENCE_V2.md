@@ -1,6 +1,6 @@
-# Packet evidence v2 — extraction contract and field dictionary
+# Packet evidence v2: extraction contract and field dictionary
 
-Implemented 1 October 2026. This is offline extraction/organisation, not a general detector or the later independent LLM assessment. The original capture remains the authoritative byte source. No traffic is transmitted or network configuration changed by this pipeline.
+This is the retained packet evidence format and field dictionary, introduced on 1 October 2026. It describes offline extraction, not a universal detector. Current model tools, saved-log import, managed collection and approved responses build on it; see [model integration](LLM_INTEGRATION.md), [saved logs](SAVED_FIELD_LOGS.md) and [investigation depth](INVESTIGATION_DEPTH.md). The original capture remains authoritative. Parsing an existing file does not transmit traffic or change network configuration.
 
 ## Processing and provenance
 
@@ -22,7 +22,7 @@ The machine-readable contract is `components/03-packet-analysis/evidence-v2.sche
 | `coverage` | Counts of mutually exclusive decoded/unsupported/malformed/truncated statuses; issue codes point to affected packet numbers. |
 | `overview` | Protocol counts (including declared protocols of problematic frames), separately decoded counts, flow count, byte totals, first/last times, duration and capture-order timestamp warning. |
 | `legacy_assessment` | Explicitly labelled old TCP-rule scope/result/references, not the evidence-led model's assessment. |
-| `facts`, `finding`, `rule`, `candidate_source`, `distinct_ports`, `lab_server` | Compatibility fields for the current UI, policy preview and LLM consumers. These remain a narrow TCP view. |
+| `facts`, `finding`, `rule`, `candidate_source`, `distinct_ports`, `lab_server` | Compatibility fields for retained legacy consumers, not the current investigator's compulsory verdict. These remain a narrow TCP view. |
 | `limitations` | Persisted coverage/interpretation constraints; retain alongside any later model context. |
 
 ## Packet record dictionary
@@ -37,7 +37,7 @@ The machine-readable contract is `components/03-packet-analysis/evidence-v2.sche
 | `ipv4` | Outer source/destination, protocol number, TTL, identification, header and total byte counts, fragment offset (8-byte units), more-fragments Boolean, stored header checksum, raw option bytes in hex. Null when no usable IPv4 header. |
 | `tcp` | Ports; numeric flag mask and names FIN/SYN/RST/PSH/ACK/URG/ECE/CWR/NS; raw sequence and acknowledgement numbers; unscaled advertised window; header length; stored checksum; urgent pointer; raw options hex; declared payload byte length. Null for non-TCP or unusable TCP. |
 | `udp` | Ports, UDP datagram byte length including its 8-byte header, stored checksum and payload length. Null for non-UDP or unusable UDP. A checksum of zero is recorded as zero, not interpreted as validation. |
-| `payload` | Present for parsed transport: byte length, first at most 64 captured payload bytes in hex, explicit limit and preview-truncated flag. Full payload stays in original capture. No text interpretation, execution or application-protocol claims. |
+| `payload` | Present for parsed transport: byte length, first at most 64 captured payload bytes in hex, explicit limit and preview-truncated flag. Full payload stays in the original capture. This preview field itself does not interpret or execute text; bounded optional HTTP/DNS observations are produced separately by the service evidence module. |
 | `flow_id` | Matching flow ID for decoded supported records; null otherwise. A partial frame may retain readable header metadata but does not contribute to flow calculations. |
 
 Physically incomplete PCAP records are rejected: the next frame boundary cannot be trusted. A complete container with a snapshot-shortened or malformed frame is accounted for per frame while other valid frames remain useful. Reported lengths and header fields are observations, not proof that captured traffic was authentic.
@@ -50,17 +50,17 @@ This is a capture-wide bidirectional five-tuple group, not TCP stream reassembly
 
 ## Limits and preserved compatibility
 
-- At most 8 MiB and 10,000 frames; classic PCAP only, Ethernet link type 1. No PCAPNG, live capture or general text-log ingestion in this phase.
+- Packet input is at most 8 MiB and 10,000 frames, classic PCAP with Ethernet link type 1. PCAPNG is unsupported. Managed lab collection produces a supported capture for this parser; exact TSV ingestion is a separate path.
 - Supported transport records: outer unfragmented IPv4/TCP and UDP within the configured 10.77.0.0/24 lab. Out-of-scope IPv4 addresses reject the input rather than bypassing the existing lab boundary.
 - Unsupported protocols/fragments/tunnels retain frame identity and available outer metadata. They are not attributed to nested transport endpoints.
-- No decryption, TCP/fragment reassembly, checksum validation, retransmission inference or application-layer interpretation.
+- No decryption, TCP/fragment reassembly or checksum validation. Optional bounded visible HTTP/1 and UDP DNS fields do not make this a universal application decoder.
 - Adding unsupported traffic no longer forces an all-capture insufficient-evidence result. UDP-only captures contain useful observations even though the compatibility TCP finding remains `insufficient_evidence`; it means “no input for this TCP rule,” not “nothing can be learned.”
 - Saved reviews retain their original schema. v1 reopening, answering and history are regression-tested; v2 uploads, history and exports preserve the new fields.
-- The existing Agno/LLM payload still uses `facts`, `finding` and `limitations`. This phase does NOT claim richer fields already reach the model, remove the forced-verdict validator, improve AI accuracy, or implement network actions.
+- The earlier compatibility payload used facts/finding fields. The current investigator uses richer observations and source-qualified tools without a compulsory legacy verdict. Separate approved lab responses are documented outside this extraction contract.
 
-## Next LLM phase integration contract
+## Evidence-to-model boundary
 
-Build model context from `capture`, `overview`, `coverage`, `packets` and `flows`, retaining IDs and explicit limits. Keep any legacy rule result separate and exclude it from independent LLM-only experiments. Coordinate Agno instructions, context, response schema, validators and UI references together. Require evidence-backed claims without forcing agreement with `finding`; validate referenced capture/packet/flow IDs and separate advice from approved execution. Treat payloads and any decoded text as untrusted data, not instructions. Keep case labels outside model context. Preserve capture-scoped conversation/history and error handling. Do not merely increase the prompt length while leaving the old validator restriction active.
+Current integration builds model context from `capture`, `overview`, `coverage`, `packets` and `flows`, retaining IDs and explicit limits. Keep any legacy rule result separate and exclude it from independent LLM-only experiments. Coordinate Agno instructions, context, response schema, validators and UI references together. Require evidence-backed claims without forcing agreement with `finding`; validate referenced capture/packet/flow IDs and separate advice from approved execution. Treat payloads and any decoded text as untrusted data, not instructions. Keep case labels outside model context. Preserve capture-scoped conversation/history and error handling. The current contract no longer requires agreement with the legacy finding.
 
 ## Reproduction and resources
 

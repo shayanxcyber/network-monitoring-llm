@@ -2,10 +2,18 @@
 
 Role member: Mohamed Khamis.
 
-pp_samples.py uses Scapy to construct normal.pcap, port-check.pcap and their manifest. It does not transmit traffic. Regenerate with python packetpilot.py make-samples.
+pp_samples.py constructs the supplied normal.pcap and port-check.pcap plus their label manifest. It uses explicit addresses and Scapy-built packets; that generator itself never transmits traffic.
 
-Contrasting cases in components/06-testing-evaluation provide normal traffic, multi-port probing, single-port retries, replies, mixed TCP/UDP and incomplete-evidence examples. Their expected labels are declared separately from the model output.
+From the complete project root:
 
-The optional live response lab uses fixed disconnected namespaces: service 10.77.0.10:8080, selected source 10.77.0.20, control 10.77.0.30 and the lab gateway. record_lab_network.py records the mapping; exercise_linux_response.py is a separate explicitly executed Linux experiment. Do not describe constructed examples as live captures.
+    .venv/bin/python packetpilot.py make-samples
 
-The cases feed Martin's decoder/evidence calculations, Shayan's investigator and Antonio's evaluation. settings.toml supplies non-secret runtime defaults. See [evidence](../../docs/ROADSHOW_EVIDENCE.md), [lab setup](../../docs/LINUX_RESPONSE.md) and [current allocation](../../docs/HANDOFF_MAP.md).
+## Constructed and collected evidence
+
+Small constructed samples support repeatable import, extraction and expected-observation checks. They are not real attacks or proof of detection accuracy. Additional scenario definitions and fixtures are under components/06-testing-evaluation/.
+
+The application also has real bounded collection in the disconnected Linux lab. pp_lab_capture.py in the response component and pp_capture_api.py in the interface component implement start/status/stop/cancel/import and current diagnostics. The existing functional paths are retained; no Mininet installation is required by this release.
+
+The lab uses selected client 10.77.0.20, control 10.77.0.30 and service 10.77.0.10:8080. Current collection and diagnostic observations remain distinct from uploaded historical evidence. A reboot changes lab generation and can invalidate action authority without invalidating the saved capture for analysis.
+
+See [lab operation](../../docs/VM_CONTINUATION.md), [collection and comparison definitions](../../docs/INVESTIGATION_DEPTH.md) and [recorded validation](../../docs/VALIDATION.md). The complete application requires all components, not this sample generator alone.

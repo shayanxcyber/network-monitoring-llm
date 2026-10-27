@@ -1,16 +1,16 @@
 # Saved network field logs
 
-PacketPilot accepts a bounded **TShark field-log TSV**, separately from a classic PCAP. It does not accept arbitrary text, Zeek connection logs or continuous collection. This first format closes the separate saved-log import path without claiming a universal log parser.
+PacketPilot accepts a bounded **TShark field-log TSV**, separately from a classic PCAP. The saved-log importer does not accept arbitrary text, Zeek connection logs or a continuous log stream. Managed lab capture is a separate application capability. This format is not a universal log parser; see [current integration](LLM_INTEGRATION.md) and [validation](VALIDATION.md).
 
 ## Produce the format
 
 Use a controlled lab capture. The following command writes a UTF-8, tab-separated file with the exact header; the shell redirection is only the operator's export step, never a model tool.
 
 ```sh
-tshark -r mixed-udp.pcap -T fields -E header=y -E quote=n -E occurrence=f -e frame.number -e frame.time_epoch -e frame.len -e ip.src -e ip.dst -e ip.proto -e tcp.srcport -e tcp.dstport -e tcp.flags -e udp.srcport -e udp.dstport > mixed-udp.tsv
+tshark -r sample-data/normal.pcap -T fields -E header=y -E quote=n -E occurrence=f -e frame.number -e frame.time_epoch -e frame.len -e ip.src -e ip.dst -e ip.proto -e tcp.srcport -e tcp.dstport -e tcp.flags -e udp.srcport -e udp.dstport > normal.tsv
 ```
 
-Default TShark field separation is a tab. Field order is fixed. No payload/free-form message field is imported. Choose **New review**, upload `.tsv`, select AI and ask a question. Importing does not call the model; sending a question does. Offline mode reports observations with no model or rule verdict.
+Default TShark field separation is a tab. Field order is fixed. No payload/free-form message field is imported. Use **Import evidence** to select the `.tsv`, then ask a question after import. Importing does not call the model; sending a question does. Offline mode reports observations with no model or rule verdict.
 
 ## Data dictionary / version 1.0
 

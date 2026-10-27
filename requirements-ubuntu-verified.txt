@@ -1,4 +1,4 @@
-# Versions actually installed and tested in the Ubuntu VM, 31 August 2026.
+# Direct dependency versions used for the Ubuntu release verification.
 # Direct application dependencies; transitive packages remain resolver-managed.
 scapy==2.7.0
 agno==3.0.4
@@ -9,3 +9,4 @@ starlette==1.6.0
 uvicorn==0.52.4
 python-multipart==0.0.32
 httpx==0.28.1
+jsonschema==4.23.0
