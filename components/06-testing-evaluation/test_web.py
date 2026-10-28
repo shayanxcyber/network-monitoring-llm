@@ -62,8 +62,9 @@ class WebTests(unittest.TestCase):
         self.assertNotIn("private-test-value", self.client.get("/api/config").text)
         self.assertEqual(self.client.get("/api/config").json()["application"], "PacketPilot")
         investigation = self.client.get("/api/config").json()["investigation"]
-        self.assertEqual(investigation["tools"], ["get_packets", "get_flow", "summarize_connections", "inspect_tcp_exchanges", "get_lab_status", "prepare_response_plan"])
-        self.assertEqual(investigation["log_tools"], ["get_log_records", "summarize_log_records", "inspect_tcp_exchanges"])
+        self.assertEqual(investigation["tools"], ["get_packets", "get_flow", "summarize_connections", "inspect_tcp_exchanges", "inspect_service", "get_code_reference", "get_lab_status", "probe_lab_service", "prepare_response_plan"])
+        self.assertEqual(investigation["log_tools"], ["get_log_records", "summarize_log_records", "inspect_tcp_exchanges", "inspect_service", "get_code_reference", "get_lab_status", "probe_lab_service", "prepare_response_plan"])
+        self.assertEqual(investigation['case_tools'],['compare_sources','inspect_case_records'])
         script = self.client.get("/assets/app.js")
         self.assertEqual(script.status_code, 200)
         self.assertIn("TCP exchange analysis", script.text)

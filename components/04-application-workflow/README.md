@@ -2,10 +2,20 @@
 
 Role member: Laurence Lau.
 
-pp_workflow.py joins input processing, model or compatibility explanation, response preview and per-run storage. pp_sessions.py stores browser sources, turns and previews. pp_runs.py manages durable investigation jobs, progress, cancellation and reconnect behaviour. pp_settings.py combines safe configuration with a private external key.
+This component retains source identity, application state and the connection between evidence, questions, answers and response records.
 
-A source, request and run retain separate identities. Repeating an existing request does not silently create another paid investigation. Conversations remain source-scoped, and exports keep useful evidence and public results together without credentials or private reasoning.
+## Storage and runs
 
-app.py, launch.py, packetpilot.py and packetpilot.desktop load the integrated application. frontend/src/api.js and refinement.jsx connect browser events, inspectors and exports; the landing styles organise history and navigation.
+pp_sessions.py stores reviews, originals, requests, conversations, case roles/selections and linked records in SQLite. pp_runs.py coordinates public pending, completed, stopped and failed request states. pp_settings.py loads non-secret settings and the operator's private external key.
 
-Tests cover persistence, duplicate requests, interrupted/streamed work, source isolation, uploads and export. Actual run/audit times remain genuine. Application append-only logging is not tamper-proof storage. See [workspace](../../docs/WORKSPACE_RESPONSE_V4.md) and [handoff](../../docs/HANDOFF_MAP.md).
+pp_workflow.py supports the retained analysis/CLI workflow. Its run directory may contain evidence.json, result.json, an operator report and audit records. The browser's current investigation also uses source-scoped jobs, case snapshots and public progress; it is not limited to the older CLI report shape.
+
+Audit events preserve actual timing and identity. Credentials and raw provider error bodies are excluded. Local append-only conventions are not tamper-proof forensic storage.
+
+## State integrity and reports
+
+Each source keeps its original bytes/hash. Earlier answers retain the scope used at generation time even when case links or the current selection change. Original inspection is separate from explicitly attaching question context.
+
+The case API and panel preserve the applied comparison pair/port rather than unsent control edits. Asynchronous source transitions must not display the outgoing source's inspector against the new source. Reports combine retained evidence, public answers, comparisons, diagnostics and available response receipts.
+
+Private runtime and provider-continuity databases are not distributed with source. Preserve them separately with compatible source/database recovery procedures. See [setup and recovery](../../SETUP.md), [case/report semantics](../../docs/INVESTIGATION_DEPTH.md) and [validation](../../docs/VALIDATION.md).

@@ -28,3 +28,4 @@
 .thread-search::after{content:"";width:15px}
 .thread-search input{width:100%;min-width:0;font-size:11px;padding:3px 0}
 .thread-search input:placeholder-shown{text-align:center}
+.receipt-progression li{position:relative}
