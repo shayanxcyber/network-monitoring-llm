@@ -10,3 +10,5 @@
 | Antonio Dormido | Evaluation, Testing and Reproducibility | Evaluate the application, maintain tests, measure performance and verify reproducibility |
 
 All members also contribute to documentation, integration, project reporting and evidence of individual work.
+
+The role titles retain the original proposal wording. In the current design, packet analysis supplies measurements, relationships and coverage to an evidence-led investigation rather than forcing the model to repeat a deterministic verdict. Response work includes actual fixed-lab execution, measured effect, manual rollback and independent expiry. Components depend on one another, so responsibilities overlap at their integration points.
