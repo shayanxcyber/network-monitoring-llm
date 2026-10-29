@@ -22,16 +22,7 @@ A short product showcase using the interface components and retained lab evidenc
 
 ## How it fits together
 
-```mermaid
-flowchart TD
-    A[PCAP or saved traffic log] --> B[Python + TShark evidence]
-    B --> C[Agno + hosted model]
-    C -->|Read-only inspection tools| B
-    C --> D[Explanation + original references]
-    D --> E[Operator reviews and approves]
-    E --> F[Isolated Linux response broker]
-    F --> G[Measured effect + restoration]
-```
+![PacketPilot investigation and controlled-response workflow](docs/media/workflow.svg)
 
 The model investigates and recommends. The operator approves, and a separate Linux service enforces the permitted action. Imported traffic alone never grants permission to change a network.
 
