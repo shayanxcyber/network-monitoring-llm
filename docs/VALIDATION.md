@@ -1,8 +1,31 @@
 # PacketPilot validation
 
-## Latest recorded implementation checks - 23 October 2026
+## Completed release checks
 
-The delivered implementation is investigator 3.25 / workspace 4.16. Documentation-only publication revisions do not change the executable source, dependencies, tests or built interface. These are retained implementation results, not new tests claimed to have run during documentation editing.
+The completed release uses workspace 4.46 and investigator 3.55. The retained Ubuntu suite passed 488 backend checks, including a separate fresh extraction, and the frontend suite passed 64 checks. Repeating the same suite in another environment does not create additional distinct tests.
+
+The completed model evaluation used the preceding workspace 4.45/investigator 3.54 release, thinking enabled and max reasoning. It covered 20 controlled scenarios with three attempts each: ten benign, six problem and four partial-evidence cases. A scenario passed only when all three answers identified the required observations without a material contradiction. Failed requests remained in the denominator.
+
+| Measure | Recorded result |
+|---|---|
+| Scenarios passing every repeat | 17/20, or 85%, against the 80% target |
+| Benign scenarios with an unwarranted alert | 0/10 across 30 attempts, against a maximum 10% target |
+| Attempts passing the core checks | 57/60 |
+| Usable responses | 58/60 |
+| Remaining answer issues | One material error and 12 minor citation or precision issues |
+| Complete investigation time | Median 56.9 seconds, range 28.8-240.0 seconds |
+
+The scenarios were used during development. These results describe that controlled set, not general accuracy on unseen traffic. Passing output checks is not the same as a fully correct explanation. The later software patch was not presented as a rerun of the whole model cohort.
+
+### Resource-constrained operation
+
+A separate actual workflow ran on Ubuntu 24.04 with 2 vCPUs and 3.95 GB RAM. A 60-packet import took 1.54 seconds, fresh 61-packet collection and processing took 1.55 seconds, and one hosted max investigation took 26.96 seconds. A temporary block was approved, checked against the selected and control clients, then rolled back.
+
+Whole-VM CPU averaged 3.0% at idle, 49.0% during the brief import and 4.8% during hosted investigation. Sampled application-and-decoder memory peaked at approximately 293 MiB, at least 2.21 GiB remained available, and no swap was used. Hosted inference keeps model computation off the VM, not all local resource cost. This small sequential workflow does not establish maximum capacity or minimum hardware requirements.
+
+## Earlier implementation checkpoint - 23 October 2026
+
+The 23 October checkpoint used investigator 3.25 / workspace 4.16. The following dated outcomes are retained to show development, not substituted for the completed-release results above.
 
 | Evidence category | Recorded result | Meaning |
 |---|---|---|
@@ -39,6 +62,8 @@ A new machine-readable report can be generated with run_checks.py as described i
 ## Historical checkpoints
 
 The following results belong to earlier versions. Preserve their settings, failures and denominators; do not pool them into current accuracy or silently relabel them as current-model tests.
+
+The unchanged [7 September host audit](history/2026-09-07-host-audit.json) is retained separately as an early development record.
 
 | Checkpoint | Retained outcome |
 |---|---|

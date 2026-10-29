@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="375" viewBox="0 0 1080 375" role="img" aria-labelledby="title desc">
+  <title id="title">PacketPilot investigation and controlled response</title>
+  <desc id="desc">Traffic evidence feeds a Python, TShark and Agno investigation, producing an explanation with original references. An optional lab response requires operator approval, a separate Linux broker and effect and restoration checks.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 10 5 0 10Z" fill="#8293ad"/></marker></defs>
+  <rect x="1" y="1" width="1078" height="373" rx="20" fill="#faf9f6" stroke="#dce2e8"/>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#202a35">
+    <text x="36" y="43" font-size="21" font-weight="650">From captured traffic to a checked response</text>
+    <g fill="none" stroke="#8293ad" stroke-width="2" marker-end="url(#arrow)">
+      <path d="M336 128H387"/><path d="M690 128H741"/>
+      <path d="M894 178V200H186V219"/>
+      <path d="M336 272H387"/><path d="M690 272H741"/>
+    </g>
+    <text x="540" y="217" text-anchor="middle" font-size="12" fill="#64738a">OPTIONAL DISCONNECTED LAB</text>
+    <rect x="36" y="78" width="300" height="100" rx="13" fill="#fff" stroke="#d5dee6"/>
+    <rect x="390" y="78" width="300" height="100" rx="13" fill="#edf3ff" stroke="#a8bddf"/>
+    <rect x="744" y="78" width="300" height="100" rx="13" fill="#fff" stroke="#d5dee6"/>
+    <rect x="36" y="222" width="300" height="100" rx="13" fill="#fff5e8" stroke="#dcc8a7"/>
+    <rect x="390" y="222" width="300" height="100" rx="13" fill="#edf3ff" stroke="#a8bddf"/>
+    <rect x="744" y="222" width="300" height="100" rx="13" fill="#edf6f0" stroke="#b4cdbd"/>
+    <g font-size="16" font-weight="650">
+      <text x="54" y="108">Traffic evidence</text><text x="408" y="108" fill="#2d4e91">Investigation</text><text x="762" y="108">Explanation</text>
+      <text x="54" y="252">Operator review</text><text x="408" y="252" fill="#2d4e91">Linux lab broker</text><text x="762" y="252" fill="#426b58">Effect + restoration</text>
+    </g>
+    <g font-size="13.5" fill="#536176">
+      <text x="54" y="133">PCAP or supported saved log</text><text x="54" y="154">Original records and coverage</text>
+      <text x="408" y="133">Python + TShark measurements</text><text x="408" y="154">Agno, hosted model and inspection tools</text>
+      <text x="762" y="133">Answer with original references</text><text x="762" y="154">Inspect records and compare sources</text>
+      <text x="54" y="277">Inspect the target and duration</text><text x="54" y="298">Explicit one-time approval</text>
+      <text x="408" y="277">Permitted block or rate limit</text><text x="408" y="298">Fixed disconnected environment</text>
+      <text x="762" y="277">Selected and control clients</text><text x="762" y="298">Manual rollback or independent expiry</text>
+    </g>
+    <text x="540" y="351" text-anchor="middle" font-size="12" fill="#64738a">The model cannot approve or execute its own suggestion.</text>
+  </g>
+</svg>
