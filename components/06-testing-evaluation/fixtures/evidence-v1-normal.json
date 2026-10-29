@@ -1,0 +1,55 @@
+{
+  "schema_version": "1",
+  "capture": {
+    "sha256": "63be8a732cc0dd1f12e65d9ef9742dde8e53edcd4b7a7a4cd1386533686d615b",
+    "packet_count": 9,
+    "size_bytes": 654
+  },
+  "decoder": {
+    "name": "scapy",
+    "version": "Scapy 2.7.0"
+  },
+  "lab_server": "10.77.0.10",
+  "finding": "no_scan_pattern",
+  "candidate_source": "10.77.0.20",
+  "distinct_ports": [
+    80,
+    443
+  ],
+  "facts": [
+    {
+      "id": "63be8a732cc0dd1f:capture",
+      "text": "9 frames; 9 supported IPv4/TCP frames; 0 unsupported frames.",
+      "packet_refs": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ]
+    },
+    {
+      "id": "63be8a732cc0dd1f:ports",
+      "text": "10.77.0.20 tried 2 different ports on 10.77.0.10 within 1.000 seconds. Ports: [80, 443].",
+      "packet_refs": [
+        1,
+        4
+      ]
+    }
+  ],
+  "rule": {
+    "id": "tcp-port-check-v1",
+    "ports": 6,
+    "seconds": 10.0
+  },
+  "limitations": [
+    "This simple demonstration rule is not a general attack detector.",
+    "A port-check pattern can also be authorised maintenance; intent is not established.",
+    "No matching pattern does not prove that a network is safe.",
+    "Only complete classic Ethernet PCAP and unfragmented lab IPv4/TCP are supported."
+  ]
+}

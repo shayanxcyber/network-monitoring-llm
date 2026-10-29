@@ -1,9 +1,13 @@
 # Non-secret settings. The API key belongs in ~/.config/packetpilot/secrets.env.
 [provider]
 base_url = "https://api.deepseek.com"
-model = "deepseek-v4-flash"
-thinking = "disabled"
-timeout_seconds = 25
+model = "deepseek-flash"
+thinking = "enabled"
+reasoning_effort = "max"
+# Omit optional generation override; provider limits still apply.
+timeout_seconds = 300
 
 [application]
 port = 8765
+# Set false for file-only use, including on a machine with a shared lab broker.
+lab_enabled = true

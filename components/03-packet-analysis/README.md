@@ -1,12 +1,21 @@
 # Packet Analysis and Deterministic Detection
 
-pp_evidence.py validates and decodes a saved PCAP, preserves its hash and packet
-numbers, and applies one explicit rule: at least six server ports tried by one
-source within ten seconds. It reads only packet-header fields, not payload text.
+Role member: Martin Huynh. The submitted role label is retained; the current investigation is evidence-led rather than forced to repeat a detector verdict.
 
-The decoder is selected with --decoder scapy or --decoder tshark. Auto uses
-TShark when installed, otherwise Scapy; the chosen decoder is recorded.
+## Evidence pipeline
 
-Next: repeat the earlier Ubuntu TShark/Scapy check, inspect the referenced packets and
-test legitimate maintenance/near-threshold examples. The threshold is illustrative,
-not a claim that every matching source is malicious.
+pp_packet_records.py validates and retains supported original packet records. Scapy normalises supported outer Ethernet/IPv4 TCP/UDP fields; the TShark mode independently checks selected fields against the same immutable capture. Decoder agreement validates extraction, not attack interpretation.
+
+pp_evidence.py retains the narrow legacy TCP assessment for compatibility, separately from detailed observations. pp_evidence_views.py supplies inspectable views, and pp_tcp_relationships.py calculates qualified visible request/reply/header relationships.
+
+pp_logs.py imports the exact supported saved TSV format. Physical line number, original byte offset, line hash and separately reported source frame number remain distinct. A derived field log is not independent raw-packet corroboration.
+
+pp_service_evidence.py adds bounded visible HTTP/1 and UDP DNS observations, candidate timings and neutral source comparisons. It does not reassemble streams, establish business success or supply a compulsory threat verdict.
+
+## Limits and consumers
+
+Inputs are bounded to the documented classic PCAP or exact TSV subset within the lab address scope. Malformed, unsupported and truncated records are reported; one unusable record does not erase other supported observations. Full details are in the [field dictionary](../../docs/EVIDENCE_V2.md) and [saved-log guide](../../docs/SAVED_FIELD_LOGS.md).
+
+The model tools and interface consume these observations with original references and coverage. Service comparisons preserve each source's units, denominator and exclusions. Explicit diagnostic identities prevent measurements from different cycles being paired. See [calculation and comparison rules](../../docs/INVESTIGATION_DEPTH.md).
+
+Current software results and their interpretation limits are in [validation](../../docs/VALIDATION.md).

@@ -27,6 +27,8 @@ from pp_operator import render_report
 from pp_policy import preview_response
 from pp_samples import make_samples, pcap_bytes, sample_packets
 from pp_workflow import run_analysis
+from pp_context import build_context
+from assessment_fixtures import stub_answer
 
 
 class Body(io.BytesIO):
@@ -50,13 +52,7 @@ class FixtureTests(unittest.TestCase):
 
     def answer(self, evidence=None):
         evidence = evidence or self.scan
-        return {
-            "finding": evidence["finding"],
-            "summary": "The source tried several server ports; check whether it was authorised.",
-            "why": "The listed port-check fact supports the observation.",
-            "next_step": "Review the source and purpose before changing any network rule.",
-            "fact_ids": [fact["id"] for fact in evidence["facts"]],
-        }
+        return stub_answer(build_context(evidence, 'Why?'))
 
     def response(self, answer=None, **changes):
         result = {
@@ -191,14 +187,17 @@ class FixtureTests(unittest.TestCase):
     def test_valid_model_reply_checked(self):
         response = self.client().explain(self.scan, "Why was this flagged?")
         self.assertEqual(response["source"], "api")
-        self.assertEqual(response["answer"]["finding"], "scan_like")
+        self.assertEqual(response['answer']['assessment'], 'inconclusive')
         self.assertEqual(response["usage"]["total_tokens"], 30)
 
-    def test_only_evidence_summary_and_question_are_sent(self):
+    def test_rich_evidence_and_question_without_verdict_are_sent(self):
         config = APIConfig("https://api.example.test/v1", "test-model", "test-secret", thinking="disabled")
         payload, metadata = build_request(self.scan, "Why?", config)
         body = json.loads(payload["messages"][1]["content"])
-        self.assertEqual(set(body), {"question", "finding", "facts", "limitations"})
+        self.assertEqual(len(body['packets']), 8)
+        self.assertEqual(len(body['flows']), 8)
+        self.assertNotIn('finding', body)
+        self.assertNotIn('scan_like', json.dumps(body))
         self.assertNotIn("test-secret", json.dumps(payload))
         self.assertEqual(payload["thinking"], {"type": "disabled"})
         self.assertEqual(len(metadata["prompt_sha256"]), 64)
@@ -206,6 +205,16 @@ class FixtureTests(unittest.TestCase):
 
     def test_key_is_not_in_config_representation(self):
         self.assertNotIn("test-secret", repr(APIConfig("https://example.test", "test", "test-secret")))
+
+    def test_direct_request_supports_max_reasoning_without_sampling_temperature(self):
+        config = APIConfig('https://example.test', 'test', 'test-secret', thinking='enabled',
+                           reasoning_effort='max', timeout=180, max_output_tokens=32768)
+        config.endpoint()
+        request, _ = build_request(self.scan, 'Inspect the evidence.', config)
+        self.assertEqual(request['thinking'], {'type': 'enabled'})
+        self.assertEqual(request['reasoning_effort'], 'max')
+        self.assertEqual(request['max_tokens'], 32768)
+        self.assertNotIn('temperature', request)
 
     def test_invalid_configuration_rejected(self):
         configs = [
@@ -217,6 +226,11 @@ class FixtureTests(unittest.TestCase):
             APIConfig("https://example.test", "test", "bad\nkey"),
             APIConfig("https://example.test", "test", "secret", timeout=float("nan")),
             APIConfig("https://example.test", "test", "secret", timeout=True),
+            APIConfig("https://example.test", "test", "secret", timeout=301),
+            APIConfig("https://example.test", "test", "secret", thinking="enabled", reasoning_effort="invalid"),
+            APIConfig("https://example.test", "test", "secret", thinking="disabled", reasoning_effort="max"),
+            APIConfig("https://example.test", "test", "secret", max_output_tokens=True),
+            APIConfig("https://example.test", "test", "secret", max_output_tokens=0),
         ]
         for config in configs:
             with self.subTest(config=config):
@@ -236,15 +250,14 @@ class FixtureTests(unittest.TestCase):
     def test_unknown_and_cross_capture_references_rejected(self):
         for refs in (["invented"], [self.normal["facts"][0]["id"]], [], ["same", "same"]):
             answer = self.answer()
-            answer["fact_ids"] = refs
+            answer['observations'][0]['references'] = refs
             with self.assertRaises(ValueError):
                 validate_explanation(json.dumps(answer), self.scan)
 
-    def test_model_cannot_change_finding(self):
+    def test_model_can_assess_independently_of_rule(self):
         answer = self.answer()
-        answer["finding"] = "no_scan_pattern"
-        with self.assertRaises(ValueError):
-            validate_explanation(json.dumps(answer), self.scan)
+        answer['assessment'] = 'normal_observations'
+        self.assertEqual(validate_explanation(json.dumps(answer), self.scan)['assessment'], 'normal_observations')
 
     def test_command_field_rejected(self):
         answer = self.answer()
@@ -258,7 +271,7 @@ class FixtureTests(unittest.TestCase):
             if modification == "missing":
                 del answer["summary"]
             else:
-                answer["summary"] = {"empty": "", "long": "x" * 901, "control": "\x1b[31m"}[modification]
+                answer["summary"] = {"empty": "", "long": "x" * 1401, "control": "\x1b[31m"}[modification]
             with self.assertRaises(ValueError):
                 validate_explanation(json.dumps(answer), self.scan)
 
@@ -297,6 +310,39 @@ class FixtureTests(unittest.TestCase):
         result = client.explain(self.scan, "Why?")
         self.assertEqual(result["attempts"], 2)
         self.assertEqual(client.sleep.call_count, 1)
+        self.assertEqual(result['http_attempts'], [
+            {'attempt': 1, 'outcome': 'http_error', 'status': 429},
+            {'attempt': 2, 'outcome': 'response_received'},
+        ])
+
+    def test_invalid_adapter_reply_retains_redacted_attempt_evidence(self):
+        answer = self.answer()
+        answer['summary'] = 'test-secret'
+        answer['observations'][0]['references'] = ['fabricated-reference']
+        with self.assertRaises(LLMError) as raised:
+            self.client(self.response(answer)).explain(self.scan, 'Why?')
+        record = raised.exception.record
+        self.assertEqual(raised.exception.code, 'invalid_response')
+        self.assertEqual(record['attempts'], 1)
+        self.assertEqual(record['finish_reason'], 'stop')
+        self.assertEqual(record['model'], 'protocol-test-stub')
+        self.assertEqual(record['usage']['total_tokens'], 30)
+        self.assertIn('fabricated-reference', record['raw_content'])
+        self.assertIn('[redacted]', record['raw_content'])
+        self.assertNotIn('test-secret', json.dumps(record))
+        self.assertEqual(len(record['request']['messages']), 2)
+        self.assertNotIn('Authorization', json.dumps(record))
+
+    def test_adapter_failure_records_http_status_without_provider_body(self):
+        client = self.client()
+        client.opener.open.side_effect = HTTPError('https://example.test', 401, 'bad', {}, Body(b'test-secret'))
+        with self.assertRaises(LLMError) as raised:
+            client.explain(self.scan, 'Why?')
+        record = raised.exception.record
+        self.assertEqual(record['http_attempts'], [{'attempt': 1, 'outcome': 'http_error', 'status': 401}])
+        self.assertEqual(record['attempts'], 1)
+        self.assertEqual(record['raw_content'], '')
+        self.assertNotIn('test-secret', json.dumps(record))
 
     def test_timeout_does_not_retry_an_ambiguous_request(self):
         client = self.client()
