@@ -1,0 +1,2 @@
+-r requirements-app.txt
+jsonschema==4.23.0
