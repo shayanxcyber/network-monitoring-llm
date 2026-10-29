@@ -1,4 +1,4 @@
-# ✳ PacketPilot
+# <img src="docs/media/mark.svg" width="30" alt=""> PacketPilot
 
 **Investigate the traffic. Check the evidence. Verify the response.**
 
