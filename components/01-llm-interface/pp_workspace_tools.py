@@ -22,17 +22,25 @@ class ResponseWorkspace:
 
     @property
     def tools(self):
-        return self.base.tools + [json_tool(self.get_lab_status), json_tool(self.prepare_response_plan)]
+        return self.base.tools + [json_tool(self.get_lab_status), json_tool(self.prepare_response_plan),json_tool(self.probe_lab_service)]
 
     @property
     def tool_names(self):
-        return self.base.tool_names | {'get_lab_status', 'prepare_response_plan'}
+        return self.base.tool_names | {'get_lab_status', 'prepare_response_plan','probe_lab_service'}
+
+    def probe_lab_service(self)->dict:
+        """Send a bounded HTTP request from each fixed lab client to service8080. New current observation, not historical file evidence or approval. No arguments/targets accepted."""
+        def operation():
+            callback=self.scope.get('probe')
+            if not callback:raise ValueError('Current lab diagnostics unavailable.')
+            return [self._record('current_service_diagnostic',dict(result=callback(),scope='Current active fixed-lab diagnostic; never proves historical state or authorises a response.'))],{'network_configuration_changed':False}
+        return self.base._run('probe_lab_service',{},operation)
 
     def _record(self, kind, data):
         row = dict(kind=kind, observed_at=timestamp(), **data)
         alias = 'a'+hashlib.sha256(encoded(row)).hexdigest()[:16]
         row['id'] = self.digest+':'+alias
-        self.base.aliases[row['id']] = alias
+        self.base._aggregate_alias(row['id'])
         self.base.aggregates[row['id']] = row
         return row
 

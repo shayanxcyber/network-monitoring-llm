@@ -1,111 +1,51 @@
-# Isolated Linux response
+# Controlled Linux lab response
 
-## What is implemented
+The current application supports a complete temporary block and service-reply rate-limit workflow in one disconnected lab. It is not a general host firewall or production network controller. [SETUP.md](../SETUP.md) covers installation; [workspace workflow](WORKSPACE_RESPONSE_V4.md) describes the operator journey.
 
-This is one complete lab workflow, not a production firewall product:
+## Fixed scope and privilege boundary
 
-1. Capture six authorised HTTP connection attempts in a disconnected Linux lab.
-2. Parse the real capture and investigate it through the normal AI interface.
-3. The operator prepares a fixed service-block proposal with a reason and duration.
-4. A separate dialog requires an exact scope confirmation. Preparation and model
-   recommendations do not apply a rule.
-5. The broker checks the current capture/lab identity and that both clients can
-   reach the service. It inserts one uniquely tagged rule inside the service
-   namespace only.
-6. Verify the source no longer reaches the service, the control client still does,
-   and the exact rule exists.
-7. Remove the exact rule on manual rollback or expiry, then verify both clients
-   work again. Broker restart rolls back known active actions and revokes proposals.
+The selected source is 10.77.0.20, control is 10.77.0.30 and service is 10.77.0.10 TCP/8080. Allowed responses last 5-120 seconds. Service-reply shaping accepts 256-2048 kbit/s. The control is not an action target, and an uploaded capture cannot substitute a different address into the live lab.
 
-The only executable scope is source **10.77.0.20** to service **10.77.0.10
-TCP/8080**, for 5–120 seconds (UI choices 20/60/120). The control is 10.77.0.30.
-These are known test clients, not identified attackers. Saved/uploaded PCAP
-reviews have previews only; they cannot be relabelled as a current lab capture.
-AI recommendations are advice. The operator selects and confirms the action;
-there is no model-callable executor.
+The unprivileged application communicates with a separate root-owned systemd broker over a local Unix socket. Peer identity, socket permissions, typed operations and server-side checks constrain the request. There is no caller-supplied shell, arbitrary namespace, external interface or destination port.
 
-## Host and privilege separation
+Four reserved namespaces and their veth connections form a disconnected topology. The host management interface, default route and root-namespace firewall are not response targets. Root-owned fixed code remains a trust boundary, not a claim of a fully sandboxed multi-user service.
 
-PacketPilot runs unprivileged as capstone. A separate root-owned systemd service
-accepts strict JSON over a local Unix socket. Linux peer credentials, socket
-permissions, fixed operations, strict field checks and server-side scope checks
-bound this path. No caller-supplied shell, namespace, destination port or path is
-accepted. Approval tokens are one-time and excluded from public audit/export.
+## Proposal to verified restoration
 
-Four named network namespaces hold the source, control, service and switch.
-Three veth pairs connect only those namespaces. There is no host bridge,
-external interface, default gateway or NAT. The VM management/SSH interface,
-Windows network and root-namespace firewall are not action targets.
+1. Collect and retain a supported current-lab capture through the application.
+2. Investigate the source and review a typed proposal, exact scope, duration, rate where relevant, expected effect and reversal.
+3. Supply separate exact one-time approval. Preparing advice or closing a dialog is not approval.
+4. The broker validates current capture/lab identity, allowed parameters and baseline conditions, then applies its own precisely identified operation.
+5. Inspect selected-client, control and enforcement observations. A command exit code alone is not effect verification or proof of solving the reported service problem.
+6. Restore manually or allow independent expiry, then verify removal and recovery. Failed restoration blocks further responses until resolved.
 
-This helper still runs as root: root-owned fixed code is a trust boundary, not
-proof of a fully sandboxed production security service. There is one local
-operator identity, not multi-user authentication or approval separation.
+Current capture eligibility is bounded and proposals have short one-time deadlines, displayed by the application. Wrong, stale, altered, cancelled, replayed, cross-source and out-of-scope authority is rejected. A reboot changes lab generation; old evidence remains analysable but is not current execution authority.
 
-## Setup on the agreed Ubuntu VM
+## Installation and lifecycle
 
-Prerequisites: Python 3, iproute2, iptables, tcpdump and systemd. Install the
-reviewed source once from the project root:
+Use the dedicated local capstone operator in a separate authorised lab VM. Install the service explicitly from the complete source as described in SETUP.md. Run one broker for its reserved namespace names; do not start another against the same lab.
 
-    sudo python3 components/05-safe-network-response/install_response_service.py --install
-    systemctl status packetpilot-response.service
-    .venv/bin/python launch.py
+The installer places root-owned code under /usr/local/lib/packetpilot-response, its systemd unit under /etc/systemd/system and private state under /var/lib/packetpilot-response. The control socket is /run/packetpilot-response/control.sock. Unexpected existing namespace or traffic-control state is rejected rather than adopted or deleted.
 
-The installer writes root-owned helper files to /usr/local/lib/packetpilot-response,
-the unit to /etc/systemd/system, and private state to /var/lib/packetpilot-response.
-The socket is /run/packetpilot-response/control.sock. An existing unrecognised lab
-namespace or veth name is not adopted/deleted. Investigate setup errors first.
-The helper is specifically configured for the existing capstone account.
+Response ownership is retained before applying the change. Exact rollback, watchdog expiry and recovery are independent of browser lifetime. Broker startup revokes pending authority and recovers known owned state. A broker/system/kernel outage can delay recovery; a whole VM reboot destroys the ephemeral topology. No uninterrupted protection during an outage is promised.
 
-Open the Ubuntu application via its local browser, or use the existing SSH tunnel
-from Windows. A Windows-only app cannot execute the Linux response; the browser
-is merely viewing the Ubuntu backend.
+## Collection and current outcome checks
 
-Select **Capture isolated Linux lab**, investigate it, then prepare the response.
-Captures are eligible for ten minutes. Proposals expire after sixty seconds.
-Type the exact confirmation shown; approval cannot be replayed. Manual rollback
-is available while active; expiry runs independently of the browser/app.
+Managed capture is bounded to the service TCP/8080 profile, 2-20 seconds, 5,000 packets and 1 MiB. Start, stop, cancel and import remain separate. Diagnostics generate current requests and do not recover missing historical traffic.
 
-## Failure handling and records
+Health and complete 128 KiB transfer checks have different objectives. A timeout remains a failed/incomplete measurement. Explicit baseline and after identities, matching objective/profile/source/generation/target and complete observations are required for a comparison. See [measurement rules](INVESTIGATION_DEPTH.md).
 
-Changed capture hashes, stale captures, wrong lab generations, bad approvals,
-out-of-scope targets, unexpected interfaces/routes and unhealthy baselines reject
-execution. Failed effect verification attempts rollback. Failed rollback raises
-a fault, disables new responses and is retried by the watchdog.
+## Records and verification
 
-State is flushed before execution, exact commands are bounded by subprocess
-timeouts, and expiry checks wall and monotonic time. Systemd restarts the broker
-after a crash; recovery removes known active rules. Expiry is not a kernel timer:
-if the broker/systemd or kernel is unable to run, recovery can be delayed. A whole
-VM reboot destroys this ephemeral topology; the next boot creates a new generation.
-Do not promise uninterrupted protection during a VM/host outage.
+Public records distinguish proposal, approval, application, effect and restoration. Exports exclude approval tokens, keys and private reasoning. If broker history is unavailable, the report says so rather than assuming restoration.
 
-Audit transitions include proposal, approval, applied rule/counters, verified
-effect and restored connectivity. Current review exports include linked action
-records. A broker-unavailable export says so instead of inventing action status.
-Real timestamps remain intact. Root private state is not a teammate upload file.
+[Validation](VALIDATION.md) summarises actual block/negative-approval, browser shaping/manual restoration and app-off expiry checks. Portable unit tests use lab doubles and are not real firewall operations. The older CLI policy path remains preview-only, independently of the implemented browser response chain.
 
-## Verification
+The retained exercise helper is an explicit integration harness with a loopback 8768 default; ordinary application launch uses 8765. Use the normal UI for an operator demonstration unless deliberately configuring a test harness. Administrator crash/recovery exercises must not target unrelated services.
 
-Portable checks:
+The supported scope excludes arbitrary topologies, unrestricted capture, generated-text execution, multi-user authorisation and production-security or attack-prevention guarantees.
 
-    python components/06-testing-evaluation/run_checks.py --output NEW_REPORT.json
+## References
 
-Real integration (explicitly applies then removes this isolated test rule):
-
-    python components/06-testing-evaluation/exercise_linux_response.py --execute --phase normal --output NEW_FOLDER
-
-Run against the Ubuntu app on loopback port 8768 as used by the exercise script.
-The normal phase covers wrong confirmation, target rejection, approval replay,
-effect verification, manual rollback and timed expiry. Separate prepare-restart /
-verify-restart phases surround an administrator-triggered broker crash to verify
-recovery; never crash arbitrary services. The 2 October development evidence
-retains the actual commands/results and before/after host configuration.
-
-Not yet implemented: arbitrary topologies/targets, traffic throttling, general
-live capture, deployment to production hosts, multi-user authorization, exhaustive
-fault/security testing or demonstrated attack-prevention accuracy.
-
-## Official references
-
-- Linux network namespace administration: https://man7.org/linux/man-pages/man8/ip-netns.8.html
-- iptables rule operations: https://man7.org/linux/man-pages/man8/iptables.8.html
+- [Linux network namespaces](https://man7.org/linux/man-pages/man8/ip-netns.8.html)
+- [iptables operations](https://man7.org/linux/man-pages/man8/iptables.8.html)

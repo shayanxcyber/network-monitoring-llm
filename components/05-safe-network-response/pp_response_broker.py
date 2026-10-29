@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 from pp_linux_lab import LinuxLab
 from pp_response_engine import ResponseEngine, ACTIVE, exact
+from pp_lab_capture import CaptureSessions
 
 DIRECTORY = Path('/var/lib/packetpilot-response')
 SOCKET = Path('/run/packetpilot-response/control.sock')
@@ -26,6 +27,7 @@ def main():
     lab.setup()
     engine = ResponseEngine(lab, DIRECTORY)
     engine.recover()
+    captures=CaptureSessions(lab)
     stopped = threading.Event()
 
     class Handler(socketserver.StreamRequestHandler):
@@ -53,11 +55,25 @@ def main():
                         exact(data, set()); result = engine.status()
                     elif operation == 'capture':
                         exact(data, set())
+                        if captures.active:raise ValueError('A managed capture is already collecting.')
                         if engine.fault or any(a['state'] in ACTIVE for a in engine.actions.values()):
                             raise ValueError('Finish the active action before a new baseline capture.')
                         result = lab.capture()
-                    elif operation == 'propose': result = engine.propose(data, actor)
-                    elif operation == 'approve': result = engine.approve(data, actor)
+                    elif operation == 'capture_start':
+                        exact(data,{'duration_seconds'})
+                        if engine.fault or any(a['state'] in ACTIVE for a in engine.actions.values()):raise ValueError('Finish the active response before collecting a baseline.')
+                        result=captures.start(data['duration_seconds'])
+                    elif operation in ('capture_status','capture_result','capture_stop','capture_cancel'):
+                        exact(data,{'session_id'})
+                        result=captures.stop(data['session_id'],operation=='capture_cancel') if operation in ('capture_stop','capture_cancel') else captures.get(data['session_id'],operation=='capture_result')
+                    elif operation in ('diagnostic','diagnostic_transfer'):
+                        exact(data,set());result=lab.diagnose() if operation=='diagnostic' else lab.diagnose_transfer()
+                    elif operation == 'propose':
+                        if captures.active:raise ValueError('Finish collection before proposing a response.')
+                        result = engine.propose(data, actor)
+                    elif operation == 'approve':
+                        if captures.active:raise ValueError('Finish collection before approving a response.')
+                        result = engine.approve(data, actor)
                     elif operation == 'cancel':
                         exact(data, {'action_id'}); result = engine.cancel(data['action_id'], actor)
                     elif operation == 'rollback':
@@ -83,6 +99,7 @@ def main():
     threading.Thread(target=watchdog, daemon=True).start()
     def shutdown(_signum, _frame):
         stopped.set()
+        captures.close()
         with engine.lock:
             for action in engine.actions.values():
                 if action['state'] in ACTIVE: engine.rollback(action['id'], 'service_shutdown')

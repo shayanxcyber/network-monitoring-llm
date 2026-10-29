@@ -20,13 +20,14 @@ IPTABLES = '/usr/sbin/iptables'
 PYTHON = '/usr/bin/python3'
 TCPDUMP = '/usr/bin/tcpdump'
 
-SERVER = '''import socket,threading
+SERVER = '''import socket,threading,time
 s=socket.socket();s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
 s.bind(("10.77.0.10",8080));s.listen(16)
 def serve(c):
  c.settimeout(8)
  try:
   request=c.recv(1024)
+  if request.startswith(b"GET /slow "): time.sleep(0.3)
   body=b"P"*131072 if request.startswith(b"GET /payload ") else b"PacketPilot\\n"
   c.sendall(b"HTTP/1.0 200 OK\\r\\nContent-Length: "+str(len(body)).encode()+b"\\r\\n\\r\\n"+body)
  except OSError: pass
@@ -141,6 +142,39 @@ class LinuxLab:
         self.check()
         return {role+'_reachable': self.inside(role, [PYTHON, '-c', PROBE], False).returncode == 0
                 for role in ('source', 'control')}
+
+    def diagnose(self):
+        """One real bounded HTTP transaction per fixed client; no caller target/path."""
+        self.check()
+        script='''import socket,time,json
+start=time.monotonic();result={"reachable":False,"http_status":None,"first_byte_seconds":None,"total_seconds":None}
+try:
+ with socket.create_connection(("10.77.0.10",8080),timeout=2) as s:
+  s.settimeout(2);result["connect_seconds"]=time.monotonic()-start
+  s.sendall(b"GET / HTTP/1.0\\r\\n\\r\\n");data=s.recv(4096)
+  result["first_byte_seconds"]=time.monotonic()-start
+  result["http_status"]=int(data.split(b" ",2)[1]) if data.startswith(b"HTTP/1.") else None
+  result["reachable"]=result["http_status"]==200;result["received_prefix_bytes"]=len(data)
+except (OSError,ValueError,IndexError) as exc:result["failure_type"]=type(exc).__name__
+result["total_seconds"]=time.monotonic()-start
+print(json.dumps(result))'''
+        return dict(observed_at_epoch=time.time(),service='10.77.0.10:8080',path='/',
+            clients={role:json.loads(self.inside(role,[PYTHON,'-c',script]).stdout) for role in ('source','control')},
+            scope='Current active health request; time includes connection/network/application, not historical capture state or pure server time.')
+
+    def diagnose_transfer(self):
+        """Fixed complete 128KiB payload check for operator outcome measurements."""
+        self.check();clients={}
+        for role in ('source','control'):
+            started=time.monotonic()
+            try:
+                value=json.loads(self.inside(role,[PYTHON,'-c',TRANSFER]).stdout)
+                clients[role]=dict(reachable=True,http_status=200,first_byte_seconds=None,total_seconds=value['seconds'],
+                    payload_bytes=value['bytes'],payload_kbit_per_second=value['kbit_per_second'],body_sha256=value['body_sha256'],complete=value['complete'])
+            except (OSError,RuntimeError,ValueError,subprocess.TimeoutExpired) as exc:
+                clients[role]=dict(reachable=False,http_status=None,first_byte_seconds=None,total_seconds=time.monotonic()-started,complete=False,failure_type=type(exc).__name__)
+        return dict(observed_at_epoch=time.time(),service='10.77.0.10:8080',path='/payload',profile='transfer',clients=clients,
+            scope='New fixed128KiB transfers, measured sequentially from both clients. Full-body verification, not first-byte timing, pure server time or a representative benchmark.')
 
     @staticmethod
     def specification(action_id):
