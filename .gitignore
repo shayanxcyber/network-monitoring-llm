@@ -1,26 +1,33 @@
-# Credentials and local configuration
+.venv/
+.venv-host/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+node_modules/
+
 .env
 .env.*
 !.env.example
 secrets.env
+
+# Local application data is not project source.
+/runtime/
+/runs/
+*.sqlite3
+*.sqlite3-*
+
+# Keep prebuilt web/react assets and intentional sample-data fixtures tracked.
+
+# Retain exclusions for keys, editor files and large local archives.
 *.pem
 *.key
-
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-.venv-host/
 venv/
-.pytest_cache/
-
-# Editors and operating systems
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
-
-# Archives and virtual machines
 *.zip
 *.7z
 *.ova

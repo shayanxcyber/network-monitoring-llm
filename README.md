@@ -1,78 +1,71 @@
 # PacketPilot
 
-A network-traffic review prototype for Cybersecurity Capstone Studio (41909).
+PacketPilot helps Linux administrators investigate saved network evidence and review a controlled response. Import a supported capture or network log, ask questions, inspect the original records and compare related sources. The hosted model can request bounded inspection tools; Python supplies the observations and checks the returned references.
 
-PacketPilot helps an operator inspect a saved capture, ask questions about the observed traffic, and review evidence-linked explanations and response previews. The proposed wider product supports investigating network issues in a small-business environment; the current implementation is a bounded synthetic-capture prototype.
+## Run locally
 
-## Current implementation
+Use Ubuntu with Python 3.12, TShark and the supplied Python dependencies. The React interface is already built. You do not need Node, Vite or a frontend build to use the release.
 
-- Scapy or TShark decodes supported saved PCAPs into structured packet facts.
-- A deterministic rule flags one source trying at least six server ports within ten seconds.
-- Our browser interface uses one Agno agent with a hosted model, standing instructions and saved conversation history.
-- Reviews preserve evidence references, answers, errors, exports and audit records.
-- Response policies validate temporary-block previews. They do **not** execute firewall changes.
+See [SETUP.md](SETUP.md) for installation, API configuration and launch instructions.
 
-Current evidence coverage is deliberately narrow: supported Ethernet/IPv4/TCP lab captures, bounded file size and packet count, and header facts rather than complete payload analysis. Unsupported traffic can currently cause an insufficient-evidence result, including mixed captures. The model's checked response must agree with the rule finding; independent broader AI detection is not implemented. Mininet integration, live enforcement, rollback and broader scenario evaluation remain future work.
+    .venv/bin/python launch.py
 
-## Team
+The browser opens at http://127.0.0.1:8765. Import your own supported evidence or use the optional samples. Opening evidence does not call the hosted model. Sending a question in hosted mode does.
 
-| Team member | Role |
-|---|---|
-| Shayan Ali | LLM Integration and Operator Interface |
-| Mohamed Khamis | Network Environment and Traffic Simulation |
-| Martin Huynh | Packet Analysis and Deterministic Detection |
-| Laurence Lau | Application Workflow, Audit and Data |
-| Ryea Dsouza | Safe Network Response and Control |
-| Antonio Dormido | Evaluation, Testing and Reproducibility |
+## Investigate a service problem
 
-## Project structure
+1. Import a classic PCAP or the documented TShark TSV log.
+2. Ask what the records support. Open a cited record to inspect its original fields.
+3. Use Related evidence & compare to group a baseline, problem and follow-up source. Select which sources the next question may use.
+4. Choose two selected sources and a service port to compare their observed counts, rates and candidate reply timing.
+5. Ask a follow-up. Previous answers retain their original source scope.
+6. Download a readable case report or the structured evidence export.
 
-| Path | Purpose |
-|---|---|
-| components/01-llm-interface/ | Model adapters, prompt, web routes and terminal interface |
-| components/02-network-simulation/ | Synthetic PCAP generation |
-| components/03-packet-analysis/ | Packet decoding and rule-based evidence |
-| components/04-application-workflow/ | Processing, configuration, sessions and audit storage |
-| components/05-safe-network-response/ | Bounded response-preview validation |
-| components/06-testing-evaluation/ | Offline tests and result reporting |
-| web/ | Browser interface |
-| sample-data/ | Synthetic captures and manifest |
-| validation/ | Dated test records |
-| docs/ | Integration and validation documentation |
+Cases support up to six sources. Each review keeps its own original file, hash, packet or physical-line identifiers and conversation. Derived TSV records are not independent corroboration of their source capture.
 
-The existing TEAM_ROLES.md, PROJECT_DECISIONS.md, docs/setup.md and sample-data/README.md remain in the repository. Historical planning text should be read in its dated context.
+## Current-lab checks and responses
 
-## Ubuntu setup
+The optional broker controls one disconnected lab service. It is not required for saved-file investigation.
 
-Use the complete repository after all six uploads are merged. The desktop shortcut expects the agreed installation directory `/home/capstone/packetpilot`; a different path requires adjusting that shortcut.
+- Collect a bounded real classic-PCAP session at the service interface, stop and keep the evidence, or cancel import. The fixed profile generates authorised health requests from both lab clients.
+- Record current HTTP reachability and first-byte timing before, during and after a response.
+- Review a temporary source block or service reply rate limit. Inspect the target, duration, commands and reversal, then separately approve the exact one-time proposal.
+- Check the selected and control clients, actual enforcement and restoration. Roll back manually or let the independent broker expire its change.
 
-With Python 3.12, venv support and the repository in that directory:
+The action scope is source 10.77.0.20 to service 10.77.0.10 TCP/8080. Control 10.77.0.30 is not an action target. Uploaded files and case membership never grant live execution authority. A fresh broker-issued capture, matching lab identity and separate operator approval are required.
 
-```bash
-cd /home/capstone/packetpilot
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements-app.txt
-.venv/bin/python configure_key.py
-.venv/bin/python launch.py
-```
+The model cannot approve a response, run arbitrary shell text or manage other networks. Suggested command examples remain reviewable text, not executable authority.
 
-The key helper prompts privately and saves the key outside the project at `~/.config/packetpilot/secrets.env`. Do not commit or share that file. Set the non-secret provider/model options in settings.toml. The browser opens the local application on port 8765. API reviews send selected synthetic evidence and questions to the configured provider and may incur charges; offline rule reviews do not.
+## Evidence and interpretation
 
-TShark is optional for Scapy-based saved-file operation but required for the decoder cross-check. The original Ubuntu environment's dependencies are recorded in requirements-ubuntu-verified.txt. This package does not install or configure Mininet, firewall execution or a live network.
+Supported input is classic Ethernet PCAP with outer unfragmented IPv4 TCP/UDP records in 10.77.0.0/24, or the exact eleven-field UTF-8 TShark TSV format. Limits include 8 MiB per input and 10,000 records. Unsupported, missing, malformed and truncated content is reported rather than silently treated as complete evidence.
 
-## Testing
+HTTP inspection recognises bounded visible HTTP/1 start lines in saved TCP segments. DNS inspection covers bounded visible UDP DNS datagrams. There is no stream reassembly, decryption or universal protocol decoder. TSV logs contain no application payload.
 
-```bash
-.venv/bin/python -m unittest discover -s components/06-testing-evaluation -v
-```
+Timing pairs are candidates based on visible relationships. Rates use each source's first-to-last observed record span, not an assumed collection interval. A TCP handshake, an HTTP status line and business success are separate observations. Missing replies do not establish network-wide absence. Current probes cannot recover a historical capture's missing direction.
 
-Run from the repository root. Tests use controlled responses, not paid model inference. A missing TShark installation is reported as a skip. Historical Ubuntu and Windows outcomes are distinguished in [Validation](docs/VALIDATION.md); test counts are not detection accuracy.
+Keep real-data permission and provider handling in mind before sending evidence to a hosted service. The included lab inputs are synthetic or from the disconnected test lab.
 
-## Further reading
+## Source and verification
 
-- [Model and interface integration](docs/LLM_INTEGRATION.md)
-- [Validation and limitations](docs/VALIDATION.md)
+Python source is separated by functional components under components/. The frontend source and lockfile are under frontend/; the distributable interface is under web/react/. Existing team/source notices are retained.
 
-## Repository workflow
+[Investigation-depth guide](docs/INVESTIGATION_DEPTH.md) explains calculation definitions, source boundaries, capture lifecycle and report contents. Historical evaluation records under docs/ describe the versions they tested. Software passes and valid output structure are not detection accuracy or a guarantee of every interpretation.
 
-Keep changes on task branches, review diffs and merge agreed changes into main. Preserve existing project decisions and team credits. Commit useful scripts, synthetic captures and selected test evidence. Keep API keys, credentials and private key files out of Git.
+To run the Python suite:
+
+    .venv/bin/python -m unittest discover -s components/06-testing-evaluation -p "test_*.py"
+
+Tests requiring TShark need the actual executable. An unavailable dependency is a skipped test, not a successful check.
+
+This is a local, single-operator application. It is not a production multi-user monitoring service or a replacement for analyst judgement.
+
+## Documentation
+
+- [Setup](SETUP.md) and [Ubuntu lab operation](docs/VM_CONTINUATION.md): installation, file-only use and optional lab prerequisites.
+- [Component map](docs/HANDOFF_MAP.md) and [current model integration](docs/LLM_INTEGRATION.md): architecture, tools, state and validation.
+- [Evidence dictionary](docs/EVIDENCE_V2.md), [saved logs](docs/SAVED_FIELD_LOGS.md) and [service investigation](docs/INVESTIGATION_DEPTH.md): provenance, supported fields and comparison rules.
+- [Workspace workflow](docs/WORKSPACE_RESPONSE_V4.md) and [Linux response](docs/LINUX_RESPONSE.md): suggestions, approval, measured effect and restoration.
+- [Validation](docs/VALIDATION.md), [answer quality](docs/ANSWER_QUALITY.md) and [demonstration evidence](docs/ROADSHOW_EVIDENCE.md): recorded checks, interpretation limits and reproducible journeys.
+
+The v2 investigation contract, 13 October audit and 18 October evaluation are explicitly historical records. Their older limits and test totals do not override current setup or capabilities. Evidence images and raw development receipts are supplied separately; private runtime databases are not part of this source package.
