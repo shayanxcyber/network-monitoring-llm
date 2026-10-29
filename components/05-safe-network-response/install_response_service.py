@@ -9,7 +9,7 @@ from pathlib import Path
 
 SOURCE = Path(__file__).resolve().parent
 DEST = Path('/usr/local/lib/packetpilot-response')
-FILES = ('pp_response_engine.py','pp_linux_lab.py','pp_response_broker.py','pp_response_operations.py')
+FILES = ('pp_response_engine.py','pp_linux_lab.py','pp_response_broker.py','pp_response_operations.py','pp_lab_capture.py')
 
 
 def command(argv):
@@ -25,6 +25,13 @@ def main():
     if DEST.is_symlink(): raise SystemExit('Refusing a symlink installation destination.')
     DEST.mkdir(mode=0o755, parents=True, exist_ok=True)
     os.chown(DEST,0,0); os.chmod(DEST,0o755)
+    # Preserve previous installed source before replacing this exact known service.
+    import datetime
+    recovery=Path('/var/lib/packetpilot-response')/('code-before-'+datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S%f'))
+    if any((DEST/name).exists() for name in FILES):
+        recovery.mkdir(mode=0o700,parents=True)
+        for name in FILES:
+            if (DEST/name).is_file():shutil.copy2(DEST/name,recovery/name)
     # Stop the old known service first so it can roll back its own active rule.
     subprocess.run(['systemctl','stop','packetpilot-response.service'],capture_output=True,timeout=20)
     for filename in FILES:

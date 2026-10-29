@@ -143,7 +143,8 @@ class Contract4Tests(unittest.TestCase):
                                 'inspect': lambda: dict(available=True, lab={'generation':'g1'})}
         result = self.workspace.get_lab_status(); row = result['records'][0]
         self.assertTrue(row['mapping_matches']); self.assertEqual(row['kind'], 'current_lab_state')
-        self.assertIn('observed_at', row); self.assertIn(self.workspace.digest+':'+row['id'], self.workspace.aggregates)
+        self.assertIn('observed_at', row)
+        self.assertIn(self.workspace.supplied[row['id']]['id'], self.workspace.aggregates)
 
 
 class RateLab(FakeLab):

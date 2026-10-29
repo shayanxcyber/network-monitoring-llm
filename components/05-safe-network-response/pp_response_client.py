@@ -5,7 +5,9 @@ import socket
 
 
 class ResponseClient:
+    def __init__(self,enabled=True):self.enabled=enabled
     def call(self, operation, data=None):
+        if not self.enabled:raise ValueError('Optional current-lab access is disabled for this application. Saved-file investigation remains available.')
         if os.name == 'nt':
             raise ValueError('Linux lab response is unavailable on this Windows-only backend. Open the Ubuntu backend through its SSH tunnel.')
         raw = (json.dumps({'operation': operation, 'data': data or {}})+'\n').encode()
